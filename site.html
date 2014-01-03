@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <link rel="stylesheet" type="text/css" href="site.css">
+
+    <link href='http://fonts.googleapis.com/css?family=Droid+Sans+Mono' rel='stylesheet' type='text/css'>
+
+    <!-- Load jQuery -->
+    <script src="scripts/jquery-1.10.2.js"></script>
+
+    <!-- Load jQuery.selection plugin
+    <script src="scripts/jquery.selection.js"></script>
+    -->
+
+    <!-- Load our site functions that are complete enough to be moved out -->
+    <script src="site-functions.js"></script>
+
+    <script>
+
+    recordSet = [];
+
+
+	currentRegex = {rowID:0};
+    /*
+    function RegexObject(rowID,datestamp,host,facility,pid,program,message){
+            this.rowID=rowID;
+            this.datestamp=datestamp;
+            this.host=host;
+            this.facility=facility;
+            this.pid=pid;
+            this.program=program;
+            this.message=message;
+            function initialise(){
+                this.rowID=0;
+                this.datestamp="";
+                this.host="";
+                this.facility="";
+                this.pid="";
+                this.program="";
+                this.message="";
+            }
+            this.initialise=initialise();
+        }
+
+    var currentRegex = new RegexObject(0,"","","","","","");
+    */
+
+	// Interrupt service function handling scrolling
+
+	function scrollISR() {
+
+        var offset, lowerVisible;
+
+		offset = $("table tr:nth-last-of-type(10)").offset();		// Get the ID of the tenth-last row in the current table
+		lowerVisible = ($(window).scrollTop() + $(window).height());	// Find out the current lowest visible position in the screen
+		if (offset.top <= lowerVisible){ requestOld(10, true); }	// If the tenth-last row is above that position, get more rows and tell requestOld to call renderOld when complete
+	}
+
+	function newMsgISR() {
+
+		requestNew(50, true);						// Request up to 50 new rows and tell requestNew to call renderNew when complete
+
+	}
+
+	function sandbox() {
+
+        /*
+        var selection = window.getSelection ();  // Get the current selected text
+        rangeObj = selection.getRangeAt(0);
+        var stringc = rangeObj.startContainer.parentNode.attributes['id'].value;
+        console.log(stringc);
+        */
+        $("span:first-child").each(function(){                  // For each <span> element that's the first <span> in it's cell
+            var cellHTML = this.parentNode.innerHTML;
+            cellHTML = cellHTML.replace(/^.*?<span class="selection">/,'__'); // Remove non-selected text from the start to the first span tag, including the tag
+            while (cellHTML.match(/<span class="selection">/)){
+                cellHTML = cellHTML.replace(/<\/span>.*?<span class="selection">/,'__'); // As above for each middle tag
+            }
+            cellHTML = cellHTML.replace(/<\/span>.*$/,'__');                  // And again for the final tag
+            //console.log(this.parentNode.innerHTML);
+            console.log(cellHTML);
+        });
+	}
+
+    function selectionCommit() {
+
+        var regexToCommit = {       // We create the regex with the default pattern for each field, [match all]
+                datetime: '.*',
+                host:     '.*',
+                facility: '.*',
+                pid:      '.*',
+                program:  '.*',
+                message:  '.*',
+                priority: '+1'
+        };
+
+        $("span:first-child").each(function(){                  // For each <span> element that's the first <span> in it's cell
+            var cellHTML = this.parentNode.innerHTML;
+            if (cellHTML.match(/^<span class="selection">/)) {                  // If the selected text starts at line start
+                cellHTML = cellHTML.replace(/^<span class="selection">/,'^');   // Just remove the first tag
+            } else {
+                cellHTML = cellHTML.replace(/^.*?<span class="selection">/,'^.*'); // Otherwise remove non-selected text from line start to the first span tag, including the tag
+            }
+            while (cellHTML.match(/<span class="selection">/)){
+                cellHTML = cellHTML.replace(/<\/span>.*?<span class="selection">/,'.*'); // As above for each middle tag
+            }
+            cellHTML = cellHTML.replace(/<\/span>.*$/,'.*');                  // And again for the final tag
+            switch (this.parentNode.attributes['id'].value){
+                case "datetime":
+                    regexToCommit.datetime = cellHTML;
+                    break;
+                case "host":
+                    regexToCommit.host = cellHTML;
+                    break;
+                case "facility":
+                    regexToCommit.facility = cellHTML;
+                    break;
+                case "pid":
+                    regexToCommit.pid = cellHTML;
+                    break;
+                case "program":
+                    regexToCommit.program = cellHTML;
+                    break;
+                case "message":
+                    regexToCommit.message = cellHTML;
+                    break;
+                default:
+                    // Something fishy is happening - shouldn't have a <td> with different ID
+                    console.log("Damnit, Unhygienix - value shouldn't be: "+ rangeObj.startContainer.attributes['id'].value);
+            } // Using a switch statement to avoid eval'ing a DOM ID
+        });
+
+        console.log(regexToCommit);
+
+        regexToCommit.message = "This is a drill.";
+        regexToCommit.command = "regexAdd";
+
+        $.getJSON("response.php", regexToCommit, function (response) {
+                    console.log(response);
+                }
+        );
+
+    }
+
+    function selectionAdd() {
+
+        var workingRowId;
+        var rangeObj;                            // The rangeObj object is used specifically when manipulating selected text, can't do it directly
+        var selection = window.getSelection ();  // Get the current selected text
+        if (!(selection.toString())) {  return;}  // If called when nothing is selected, exit immediately
+        rangeObj = selection.getRangeAt(0);      // Create a range object from the selection
+        if (rangeObj.endContainer != rangeObj.startContainer) {rangeObj.setEndAfter(rangeObj.startContainer);} // If we have multiple cells selected, adjust the range to only the first cell
+        workingRowId = rangeObj.startContainer.parentNode.parentNode.firstChild.innerHTML;
+        if (workingRowId != currentRegex.ID) {   // Confirm we're still highlighting the same row
+            selectionClear();
+            currentRegex.ID = workingRowId;
+        }
+        var span = document.createElement("span"); // Create a span tag so we can highlight the text for cosmetic purposes
+        span.className="selection";              // Set the span to the highlight class
+        rangeObj.surroundContents(span);         // Put the span tag on the selected text
+        if (rangeObj.startContainer.attributes['id'].value === "ID"){
+            selectionClear();
+        }
+     }
+
+    </script>
+
+</head>
+
+<body>
+
+    <div style="position:fixed; top:10px; right:10px; z-index:10; opacity: 0.9; height: 50px; width: 120px;">
+	<table>
+	    <tr>
+		<th> Settings </th>
+	    </tr><tr>
+	    	<td> This is a test text. Priority: Plaid. </td>
+	    </tr>
+	</table>
+    </div>
+
+    <button onclick="sandbox()">Call sandbox()</button>
+    <button onclick="selectionCommit()">Call selectionCommit()</button>
+
+    <div class="blueTable" style="position:relative; top:20px; left:20px;">
+        <table id="mainTable" oncontextmenu="selectionClear(); return false;">
+            <tr id="title">
+                <td>ID</td>
+                <td style="min-width: 130px;">Datestamp</td>
+                <td>Host</td>
+                <td>Facility</td>
+                <td>PID</td>
+                <td>Message</td>
+		<td></td>
+		<td></td>
+            </tr>
+        </table>
+    </div>
+    <script>
+        $(document).ready(function () {
+
+	initialiseTable();
+
+	window.setInterval(scrollISR,200);
+
+	window.setInterval(newMsgISR,5000); // May need to be decreased if we're logging a high number of messages
+
+        });
+    </script>
+
+
+</body>
+
+</html>
+
+
