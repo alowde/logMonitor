@@ -1,8 +1,6 @@
 <!DOCTYPE html>
 <html>
 
-<!-- Ashley Lowde 2014 -->
-
 <head>
 
     <meta charset="UTF-8">
@@ -14,10 +12,6 @@
     <!-- Load jQuery -->
     <script src="scripts/jquery-1.10.2.js"></script>
 
-    <!-- Load jQuery.selection plugin
-    <script src="scripts/jquery.selection.js"></script>
-    -->
-
     <!-- Load our site functions that are complete enough to be moved out -->
     <script src="site-functions.js"></script>
 
@@ -25,31 +19,7 @@
 
     recordSet = [];
 
-
 	currentRegex = {rowID:0};
-    /*
-    function RegexObject(rowID,datestamp,host,facility,pid,program,message){
-            this.rowID=rowID;
-            this.datestamp=datestamp;
-            this.host=host;
-            this.facility=facility;
-            this.pid=pid;
-            this.program=program;
-            this.message=message;
-            function initialise(){
-                this.rowID=0;
-                this.datestamp="";
-                this.host="";
-                this.facility="";
-                this.pid="";
-                this.program="";
-                this.message="";
-            }
-            this.initialise=initialise();
-        }
-
-    var currentRegex = new RegexObject(0,"","","","","","");
-    */
 
 	// Interrupt service function handling scrolling
 
@@ -68,14 +38,8 @@
 
 	}
 
-	function sandbox() {
+/*	function sandbox() {
 
-        /*
-        var selection = window.getSelection ();  // Get the current selected text
-        rangeObj = selection.getRangeAt(0);
-        var stringc = rangeObj.startContainer.parentNode.attributes['id'].value;
-        console.log(stringc);
-        */
         $("span:first-child").each(function(){                  // For each <span> element that's the first <span> in it's cell
             var cellHTML = this.parentNode.innerHTML;
             cellHTML = cellHTML.replace(/^.*?<span class="selection">/,'__'); // Remove non-selected text from the start to the first span tag, including the tag
@@ -87,118 +51,71 @@
             console.log(cellHTML);
         });
 	}
+*/
+    
+    function resizeSettingsDiv() {
 
-    function selectionCommit() {
+	$outerdiv = $( "#settingsOuter" );
+	$innerdiv = $( "#settingsInner" );
 
-        var regexToCommit = {       // We create the regex with the default pattern for each field, [match all]
-                datetime: '.*',
-                host:     '.*',
-                facility: '.*',
-                pid:      '.*',
-                program:  '.*',
-                message:  '.*',
-                priority: '+1'
+	var grow = {
+	    transition : 'top 0.75s ease',
+	    top : '20%'
+	};
+
+	var shrink = {
+            transition : 'top 0.75s ease',
+            top : '40%'
         };
 
-        $("span:first-child").each(function(){                  // For each <span> element that's the first <span> in it's cell
-            var cellHTML = this.parentNode.innerHTML;
-            if (cellHTML.match(/^<span class="selection">/)) {                  // If the selected text starts at line start
-                cellHTML = cellHTML.replace(/^<span class="selection">/,'^');   // Just remove the first tag
-            } else {
-                cellHTML = cellHTML.replace(/^.*?<span class="selection">/,'^.*'); // Otherwise remove non-selected text from line start to the first span tag, including the tag
-            }
-            while (cellHTML.match(/<span class="selection">/)){
-                cellHTML = cellHTML.replace(/<\/span>.*?<span class="selection">/,'.*'); // As above for each middle tag
-            }
-            cellHTML = cellHTML.replace(/<\/span>.*$/,'.*');                  // And again for the final tag
-            switch (this.parentNode.attributes['id'].value){
-                case "datetime":
-                    regexToCommit.datetime = cellHTML;
-                    break;
-                case "host":
-                    regexToCommit.host = cellHTML;
-                    break;
-                case "facility":
-                    regexToCommit.facility = cellHTML;
-                    break;
-                case "pid":
-                    regexToCommit.pid = cellHTML;
-                    break;
-                case "program":
-                    regexToCommit.program = cellHTML;
-                    break;
-                case "message":
-                    regexToCommit.message = cellHTML;
-                    break;
-                default:
-                    // Something fishy is happening - shouldn't have a <td> with different ID
-                    console.log("Damnit, Unhygienix - value shouldn't be: "+ rangeObj.startContainer.attributes['id'].value);
-            } // Using a switch statement to avoid eval'ing a DOM ID
-        });
 
-        console.log(regexToCommit);
-
-        regexToCommit.message = "This is a drill.";
-        regexToCommit.command = "regexAdd";
-
-        $.getJSON("response.php", regexToCommit, function (response) {
-                    console.log(response);
-                }
-        );
-
+	if ( $outerdiv.height() === 200) {
+	    $outerdiv.height(400);
+  	    $outerdiv.css(grow);
+	    $innerdiv.height(352);
+	} else {
+	    $outerdiv.height(200);
+            $outerdiv.css(shrink);
+	    $innerdiv.height(152);
+	}
     }
-
-    function selectionAdd() {
-
-        var workingRowId;
-        var rangeObj;                            // The rangeObj object is used specifically when manipulating selected text, can't do it directly
-        var selection = window.getSelection ();  // Get the current selected text
-        if (!(selection.toString())) {  return;}  // If called when nothing is selected, exit immediately
-        rangeObj = selection.getRangeAt(0);      // Create a range object from the selection
-        if (rangeObj.endContainer != rangeObj.startContainer) {rangeObj.setEndAfter(rangeObj.startContainer);} // If we have multiple cells selected, adjust the range to only the first cell
-        workingRowId = rangeObj.startContainer.parentNode.parentNode.firstChild.innerHTML;
-        if (workingRowId != currentRegex.ID) {   // Confirm we're still highlighting the same row
-            selectionClear();
-            currentRegex.ID = workingRowId;
-        }
-        var span = document.createElement("span"); // Create a span tag so we can highlight the text for cosmetic purposes
-        span.className="selection";              // Set the span to the highlight class
-        rangeObj.surroundContents(span);         // Put the span tag on the selected text
-        if (rangeObj.startContainer.attributes['id'].value === "ID"){
-            selectionClear();
-        }
-     }
 
     </script>
 
 </head>
 
-<body>
+<body style="background-color: #2e3033">
 
-    <div style="position:fixed; top:10px; right:10px; z-index:10; opacity: 0.9; height: 50px; width: 120px;">
-	<table>
-	    <tr>
-		<th> Settings </th>
-	    </tr><tr>
-	    	<td> This is a test text. Priority: Plaid. </td>
-	    </tr>
-	</table>
+    <div style="position:fixed; top:40%; right:10px; z-index:10; height: 200px; width: 150px; overflow: hidden;" class="floatDiv" id="settingsOuter">
+	<div style="background-color: #B8B881; border-top-left-radius: 10px; border-top-right-radius: 10px; z-index:11; text-align: center; padding: 3px; height: 15px">
+		Settings
+	</div>
+	<div style="z-index:10; text-align: center; padding: 3px; height: 152px;" id="settingsInner">
+		<div class="upArrowSvg" style="height: 75px" onclick="selectionCommit(1)" id="upArrow">
+		</div>
+		<div class="downArrowSvg" style="height: 75px" onclick="selectionCommit(-1)">
+                </div>
+	</div>
+	<div style="background-color: #B8B881; text-align: center; padding: 3px; height: 15px; z-index:10;" onclick="resizeSettingsDiv()">
+		...	
+	</div>
+<!--	<div style="position: fixed; background-color: #bbffff; top: 485px; right: 10px; border-bottom-left-radius: 10px; border-bottom-right-radius: 10px; z-index:12; text-align: center; padding: 3px; height: 15px; width:10px;">
+	</div>
+-->
     </div>
 
-    <button onclick="sandbox()">Call sandbox()</button>
+<!--    <button onclick="sandbox()">Call sandbox()</button>
     <button onclick="selectionCommit()">Call selectionCommit()</button>
-
+-->
     <div class="blueTable" style="position:relative; top:20px; left:20px;">
         <table id="mainTable" oncontextmenu="selectionClear(); return false;">
             <tr id="title">
                 <td>ID</td>
                 <td style="min-width: 130px;">Datestamp</td>
                 <td>Host</td>
-                <td>Facility</td>
+                <td style="min-width: 150px;">Facility</td>
                 <td>PID</td>
                 <td>Message</td>
-		<td></td>
-		<td></td>
             </tr>
         </table>
     </div>
