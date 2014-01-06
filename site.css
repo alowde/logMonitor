@@ -43,10 +43,12 @@
 	-webkit-border-bottom-left-radius:0px;
 	border-bottom-left-radius:0px;
 }.blueTable tr:hover td{
-	
+	background-color:#e0e0ca;
 }
-.blueTable tr:nth-child(odd){ background-color:#dbecfc; }
-.blueTable tr:nth-child(even)    { background-color:#ffffff; }.blueTable td{
+.blueTable tr:nth-child(odd){ background-color:#f0f0f0; }
+/*.blueTable tr:nth-child(odd):hover {background-color:#e0e0da;}*/
+
+.blueTable tr:nth-child(even)    { background-color:#e0e0da; }.blueTable td{
 	vertical-align:middle;
 	border:0px solid #000000;
 	border-width:0px 0px 0px 0px;
@@ -64,10 +66,13 @@
 	border-width:0px 0px 0px 0px;
 }
 .blueTable tr:first-child td{
-		background:-o-linear-gradient(bottom, #005fbf 5%, #003f7f 100%);	background:-webkit-gradient( linear, left top, left bottom, color-stop(0.05, #005fbf), color-stop(1, #003f7f) );
+	background-image: linear-gradient(to bottom,  #949E23 5%, #B8B881 100%);
+/*	background:-o-linear-gradient(bottom, #005fbf 5%, #003f7f 100%);	
+	background:-webkit-gradient( linear, left top, left bottom, color-stop(0.05, #005fbf), color-stop(1, #003f7f) );
 	background:-moz-linear-gradient( center top, #005fbf 5%, #003f7f 100% );
-	filter:progid:DXImageTransform.Microsoft.gradient(startColorstr="#005fbf", endColorstr="#003f7f");	background: -o-linear-gradient(top,#005fbf,003f7f);
-
+	filter:progid:DXImageTransform.Microsoft.gradient(startColorstr="#005fbf", endColorstr="#003f7f");	
+	background: -o-linear-gradient(top,#005fbf,003f7f);
+*/
 	background-color:#005fbf;
 	border:0px solid #000000;
 	text-align:center;
@@ -77,13 +82,16 @@
 	font-weight:bold;
 	color:#ffffff;
 }
+/*
 .blueTable tr:first-child:hover td{
-	background:-o-linear-gradient(bottom, #005fbf 5%, #003f7f 100%);	background:-webkit-gradient( linear, left top, left bottom, color-stop(0.05, #005fbf), color-stop(1, #003f7f) );
+	background:-o-linear-gradient(bottom, #005fbf 5%, #003f7f 100%);	
+	background:-webkit-gradient( linear, left top, left bottom, color-stop(0.05, #005fbf), color-stop(1, #003f7f) );
 	background:-moz-linear-gradient( center top, #005fbf 5%, #003f7f 100% );
-	filter:progid:DXImageTransform.Microsoft.gradient(startColorstr="#005fbf", endColorstr="#003f7f");	background: -o-linear-gradient(top,#005fbf,003f7f);
-
+	filter:progid:DXImageTransform.Microsoft.gradient(startColorstr="#005fbf", endColorstr="#003f7f");	
+	background: -o-linear-gradient(top,#005fbf,003f7f);
 	background-color:#005fbf;
 }
+*/
 .blueTable tr:first-child td:first-child{
 	border-width:0px 0px 1px 0px;
 }
@@ -107,3 +115,25 @@
 .selection {
     background-color: yellow;
 }
+
+.floatDiv {
+	background-color: #f0f0f0;
+	border-radius: 10px;
+}
+
+.upArrowSvg {
+        background-image:url('up.svg');
+        background-repeat:no-repeat;
+        background-position:center;
+        cursor:pointer;
+	background-size: auto 75px;
+}
+
+.downArrowSvg {
+        background-image:url('down.svg');
+        background-repeat:no-repeat;
+        background-position:center;
+        cursor:pointer;
+        background-size: auto 75px;
+}
+
