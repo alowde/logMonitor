@@ -99,14 +99,14 @@
 	border-width:0px 0px 1px 1px;
 }
 .upArrow {
-	background-image:url('up.jpg');
+	background-image:url('resources/up.jpg');
 	background-repeat:no-repeat;
 	background-position:center;
 	background-color:white;
 	cursor:pointer;
 }
 .downArrow {
-	background-image:url('down.jpg');
+	background-image:url('resources/down.jpg');
 	background-repeat:no-repeat;
 	background-position:center;
 	background-color:white;
