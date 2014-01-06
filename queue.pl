@@ -2,7 +2,6 @@
 
 use strict;
 use v5.10;
-# use DBI;
 
 use threads;
 use Thread::Queue;
@@ -11,15 +10,15 @@ use threads::shared;
 
 my $messageQueue = Thread::Queue::Any->new();
 
-
-my $thread1 = threads->create(\&inbound1);
+#	Need to set up code for automatically determining 
+my $thread1 = threads->create(\&sqlInput);
 
 #   Lock variable, exists only for locking between threads
 our $dblock :shared;
 
 $thread1->join();
 
-sub inbound1 {
+sub sqlInput {
 
     require DBI;
     DBI->import();
@@ -29,7 +28,7 @@ sub inbound1 {
 
 #   Prepare the database connection and select statements
     my $dbConnection = DBI->connect('dbi:mysql:syslogng','syslog','secoifjwe')
-                            or die "Failed to connect to database when getting new messages\n";
+                            or die "Read thread " . threads->tid() . " died after failing to connect to database\n";
     my $sqlSelect = "SELECT * FROM `syslog_messages_incoming` LIMIT 0, 1;";
     my $sqlDelete = "DELETE FROM `syslog_messages_incoming` WHERE `ID` = ?;";
     my $selectStatement = $dbConnection->prepare($sqlSelect);
@@ -37,22 +36,24 @@ sub inbound1 {
 
     do {
        
-#   Lock the database connection while we grab a row and delete it
-
+#		Declare initial variables	   
         my @result;
-        
+
+#   	Lock the database connection while we grab a row and delete it        
 {        
         lock ($dblock);
          
-        $selectStatement->execute or die "Thread " . threads->tid() . " died while failing to run a select statement)";
+        $selectStatement->execute or die "Read thread " . threads->tid() . " died after failing to run a select statement";
         
         @result = $selectStatement->fetchrow_array;
 
         unless (@result) { die "No rows found" };
 
-        $deleteStatement->execute($result[0]) or die "Thread " . threads->tid() . " died while failing to run a delete statement";
+        $deleteStatement->execute($result[0]) or die "Write thread " . threads->tid() . " died after failing to run a delete statement";
 
 }
+#		The lock is released once we go out of scope as defined by the braces {}
+
 #       Initialisation - set starting processed value, scanned value and starting priority to 0
         my $i = 0;
         unless ($result[8]) { $result[8] = 0 };
@@ -61,24 +62,42 @@ sub inbound1 {
 #       Check each regexes for match
         foreach (@regexes) {
 
-            if (($result[5] =~ /$_->{message}/) and     #  Likely to fail, so we check it first
+            if (($result[5] =~ /$_->{message}/) and     #  Likely to not match, so we check it first
                 ($result[1] =~ /$_->{datestamp}/) and
                 ($result[2] =~ /$_->{host}/) and
                 ($result[3] =~ /$_->{program}/) and
                 ($result[4] =~ /$_->{pid}/)) {
                 
-                 $result[8] += $_->{priority}              #  If we match all regexes, increment or decrement as appropriate
+                 $result[8] += $_->{priority}           #  If we match all regexes, increment or decrement as appropriate
             }
             $i++                                            #  For every regex, matched or not, increment the number of regexes checked
         };
 
         $result[7] = $i;                                    #  Set processed according to the number of regexes checked
     
-        $messageQueue->enqueue(@result);     
+        $messageQueue->enqueue(@result);  					#  Pop the result onto the queue for processing   
 
-    } while 1;
+    } while 1;										#  Currently the thread loops infinitely. This can probably be better implemented
+													#  Priorities are - maintaining a small number of long-running threads
+													#				  - gracefully recovering from errors by restarting threads if appropriate
 
 }
+
+
+sub sqlOutput {
+
+    require DBI;
+    DBI->import();
+
+#   Prepare the database connection and insert statements
+    my $dbConnection = DBI->connect('dbi:mysql:syslogng','syslog','secoifjwe')
+                            or die "Failed to connect to database when getting new messages\n";
+    my $sqlSelect = "SELECT * FROM `syslog_messages_incoming` LIMIT 0, 1;";
+    my $sqlDelete = "DELETE FROM `syslog_messages_incoming` WHERE `ID` = ?;";
+    my $selectStatement = $dbConnection->prepare($sqlSelect);
+
+}
+
 
 sub initialiseRegexes {
 
