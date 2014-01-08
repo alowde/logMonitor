@@ -18,6 +18,20 @@ our $dblock :shared;
 
 $thread1->join();
 
+sub fileInput {
+
+    require File::Tail;
+    File::Tail->import();
+
+    $file=File::Tail->new("/root/testfile");
+
+    while (defined( $line=$file->read) ) {
+    	$messageQueue->enqueue($line);
+    }
+}
+	
+
+
 sub sqlInput {
 
     require DBI;
@@ -36,7 +50,7 @@ sub sqlInput {
 
     do {
        
-#		Declare initial variables	   
+#	Declare initial variables	   
         my @result;
 
 #   	Lock the database connection while we grab a row and delete it        
@@ -52,7 +66,7 @@ sub sqlInput {
         $deleteStatement->execute($result[0]) or die "Write thread " . threads->tid() . " died after failing to run a delete statement";
 
 }
-#		The lock is released once we go out of scope as defined by the braces {}
+#	The lock is released once we go out of scope as defined by the braces {}
 
 #       Initialisation - set starting processed value, scanned value and starting priority to 0
         my $i = 0;
@@ -75,11 +89,11 @@ sub sqlInput {
 
         $result[7] = $i;                                    #  Set processed according to the number of regexes checked
     
-        $messageQueue->enqueue(@result);  					#  Pop the result onto the queue for processing   
+        $messageQueue->enqueue(@result);  		#  Pop the result onto the queue for processing   
 
-    } while 1;										#  Currently the thread loops infinitely. This can probably be better implemented
-													#  Priorities are - maintaining a small number of long-running threads
-													#				  - gracefully recovering from errors by restarting threads if appropriate
+    } while 1;						#  Currently the thread loops infinitely. This can probably be better implemented
+							#  Priorities are - maintaining a small number of long-running threads
+							#				  - gracefully recovering from errors by restarting threads if appropriate
 
 }
 
@@ -98,6 +112,16 @@ sub sqlOutput {
 
 }
 
+sub consoleOutput {
+
+#   Output function used in debugging, dumps all messages to console
+#   THIS MEANS THEY WILL BE LOST
+
+    do {
+	say $messageQueue->dequeue;
+    } while 1;
+}
+    
 
 sub initialiseRegexes {
 
