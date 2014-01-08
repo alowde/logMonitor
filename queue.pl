@@ -100,14 +100,16 @@ sub sqlInput {
 
 sub sqlOutput {
 
+#   Outputting to normal mySQL table
+
     require DBI;
     DBI->import();
 
 #   Prepare the database connection and insert statements
     my $dbConnection = DBI->connect('dbi:mysql:syslogng','syslog','secoifjwe')
-                            or die "Failed to connect to database when getting new messages\n";
-    my $sqlSelect = "SELECT * FROM `syslog_messages_incoming` LIMIT 0, 1;";
-    my $sqlDelete = "DELETE FROM `syslog_messages_incoming` WHERE `ID` = ?;";
+                            or die "Failed to connect to database for message output\n";
+    my $sqlInsertOne = "INSERT INTO `syslogng`.`syslog_messages_incoming` (`ID`, `datetime`, `host`, `program`, `pid`, `message`, `scanned`, `processed`, `priority`) VALUES (NULL, '?', '?', '?', '?', '?', '?', '?', '?'); ";
+    my $sqlInsertFive = "";
     my $selectStatement = $dbConnection->prepare($sqlSelect);
 
 }
