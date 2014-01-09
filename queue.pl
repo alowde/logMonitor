@@ -12,23 +12,24 @@ my $messageQueue = Thread::Queue::Any->new();
 
 #	Need to set up code for automatically determining 
 my $thread1 = threads->create(\&sqlInput);
+my $thread2 = threads->create(\&sqlOutput);
 
 #   Lock variable, exists only for locking between threads
 our $dblock :shared;
 
 $thread1->join();
 
-sub fileInput {
-
-    require File::Tail;
-    File::Tail->import();
-
-    $file=File::Tail->new("/root/testfile");
-
-    while (defined( $line=$file->read) ) {
-    	$messageQueue->enqueue($line);
-    }
-}
+#sub fileInput {
+#
+#    require File::Tail;
+#    File::Tail->import();
+#
+#    $file=File::Tail->new("/root/testfile");
+#
+#    while (defined( $line=$file->read) ) {
+#    	$messageQueue->enqueue($line);
+#    }
+#}
 	
 
 
@@ -51,49 +52,63 @@ sub sqlInput {
     do {
        
 #	Declare initial variables	   
-        my @result;
+        my @message;
 
 #   	Lock the database connection while we grab a row and delete it        
 {        
         lock ($dblock);
          
-        $selectStatement->execute or die "Read thread " . threads->tid() . " died after failing to run a select statement";
+#        $selectStatement->execute or die "Read thread " . threads->tid() . " died after failing to run a select statement";
+
+#	Return one row from the database        
+#        @message = $selectStatement->fetchrow_array;
+
+        do {             #die "No rows found" };	# Not particularly sensible. Needs to wait instead, and preferably wait an amount of time that corresponds with how busy we are
+
+        $selectStatement->execute or die "Read thread " . threads->tid() . " died after failing to run a s";
+
+        #   Return one row from the database        
+        @message = $selectStatement->fetchrow_array;
+
+        unless (@message) { sleep 1;};
         
-        @result = $selectStatement->fetchrow_array;
+        } while !(@message);
 
-        unless (@result) { die "No rows found" };
 
-        $deleteStatement->execute($result[0]) or die "Write thread " . threads->tid() . " died after failing to run a delete statement";
+
+#	Delete same row from database, identified by ID
+        $deleteStatement->execute($message[0]) or die "Write thread " . threads->tid() . " died after failing to run a delete statement";
 
 }
 #	The lock is released once we go out of scope as defined by the braces {}
+#	Another thread can now make a query without concern that it might grab the same row
 
 #       Initialisation - set starting processed value, scanned value and starting priority to 0
         my $i = 0;
-        unless ($result[8]) { $result[8] = 0 };
-        unless ($result[6]) { $result[6] = 0 };
+        unless ($message[8]) { $message[8] = 0 };
+        unless ($message[6]) { $message[6] = 0 };
 
 #       Check each regexes for match
         foreach (@regexes) {
 
-            if (($result[5] =~ /$_->{message}/) and     #  Likely to not match, so we check it first
-                ($result[1] =~ /$_->{datestamp}/) and
-                ($result[2] =~ /$_->{host}/) and
-                ($result[3] =~ /$_->{program}/) and
-                ($result[4] =~ /$_->{pid}/)) {
+            if (($message[5] =~ /$_->{message}/) and     #  Likely to not match, so we check it first
+                ($message[1] =~ /$_->{datestamp}/) and
+                ($message[2] =~ /$_->{host}/) and
+                ($message[3] =~ /$_->{program}/) and
+                ($message[4] =~ /$_->{pid}/)) {
                 
-                 $result[8] += $_->{priority}           #  If we match all regexes, increment or decrement as appropriate
+                 $message[8] += $_->{priority}           #  If we match all regexes, increment or decrement as appropriate
             }
             $i++                                            #  For every regex, matched or not, increment the number of regexes checked
         };
 
-        $result[7] = $i;                                    #  Set processed according to the number of regexes checked
+        $message[7] = $i;                                    #  Set processed according to the number of regexes checked
     
-        $messageQueue->enqueue(@result);  		#  Pop the result onto the queue for processing   
+        $messageQueue->enqueue(@message);  		#  Pop the message onto the queue for processing   
 
     } while 1;						#  Currently the thread loops infinitely. This can probably be better implemented
 							#  Priorities are - maintaining a small number of long-running threads
-							#				  - gracefully recovering from errors by restarting threads if appropriate
+							#		  - gracefully recovering from errors by restarting threads if appropriate
 
 }
 
@@ -107,10 +122,30 @@ sub sqlOutput {
 
 #   Prepare the database connection and insert statements
     my $dbConnection = DBI->connect('dbi:mysql:syslogng','syslog','secoifjwe')
-                            or die "Failed to connect to database for message output\n";
-    my $sqlInsertOne = "INSERT INTO `syslogng`.`syslog_messages_incoming` (`ID`, `datetime`, `host`, `program`, `pid`, `message`, `scanned`, `processed`, `priority`) VALUES (NULL, '?', '?', '?', '?', '?', '?', '?', '?'); ";
-    my $sqlInsertFive = "";
-    my $selectStatement = $dbConnection->prepare($sqlSelect);
+                            or die "Failed to connect to database for message output, error: " . $DBI::err . "\n";
+    my $sqlInsertOne = "INSERT INTO `syslogng`.`syslog_messages` (`ID`, `datetime`, `host`, `program`, `pid`, `message`, `scanned`, `processed`, `priority`) VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?); ";
+    my $sqlInsertFive = "INSERT INTO `syslogng`.`syslog_messages` (`ID`, `datetime`, `host`, `program`, `pid`, `message`, `scanned`, `processed`, `priority`) VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?), (NULL, ?, ?, ?, ?, ?, ?, ?, ?), (NULL, ?, ?, ?, ?, ?, ?, ?, ?), (NULL, ?, ?, ?, ?, ?, ?, ?, ?), (NULL, ?, ?, ?, ?, ?, ?, ?, ?);"; 
+
+
+#  Only using InsertOne at the moment, need to check the queue and decide what to use.
+	my $statement = $dbConnection->prepare($sqlInsertOne);
+
+    do {
+
+#  Grab a message off the queue. Will block until a message is available
+	my @message = $messageQueue->dequeue;
+
+#  Binding parameters starting at 1 as we don't try to insert the ID.
+
+	for (my $i=1; $i<=8; $i++) {
+	    $statement->bind_param( $i, $message[$i]);
+	}
+   
+#  Try to actually insert the value
+
+	$statement->execute or die "Write thread died after failing to write a message to the main database";
+
+    } while 1;
 
 }
 
