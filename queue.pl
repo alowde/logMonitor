@@ -116,6 +116,7 @@ sub clean_stop {
     $dbConnection->disconnect();
     $pidfile->remove or say "Warning! Couldn't remove PID file, will need to be deleted manually";
     my $die_message = $_ ? $_ : "Received kill signal, exiting gracefully.\n";
-    exit $die_message;
+    say $die_message;
+    exit;
 
 }
