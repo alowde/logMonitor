@@ -8,6 +8,8 @@ use File::Pid;
 
 use sigtrap qw(handler clean_stop normal-signals);
 
+my $dbg = 1;
+
 #  PID file handler
 my $pidfile = File::Pid->new({
     file => '/var/run/cron.pid',
@@ -19,10 +21,10 @@ $pidfile->write;
 
 
 #   Prepare the database connection and select statements
-    my $dbConnection = DBI->connect('dbi:mysql:syslogng','syslog','secoifjwe')
+        my $dbConnection = DBI->connect('dbi:mysql:syslogng','syslog','secoifjwe')
                             or clean_stop("Failed to connect to database\n");
         #  sqlMinProcessed finds the number of the least processed record in the table
-    my $sqlMinProcessed = "SELECT MIN(`processed`) FROM `syslog_messages`;";
+        my $sqlMinProcessed = "SELECT MIN(`processed`) FROM `syslog_messages`;";
         #  For maximum speed, where possible we avoid running a regex against multiple fields.
         #  This is believed to save time by avoiding MySQL searching for the regex ".*", which
         #  should match all fields anyway.
@@ -32,57 +34,75 @@ $pidfile->write;
 
         #  Processing `message` first in this case is useful as it's likely to
         #  fail early, short-cutting the query.
-    my $sqlUpdateAll = "UPDATE DELAYED `syslog_messages` SET `priority` = `priority` + :priority, `processed` = :procS WHERE `processed` = procC AND `message` REGEXP :message AND `host` REGEXP :host AND `program` REGEXP :program AND `pid` REGEXP :pid AND `datetime` REGEXP :datetime;";
-    my $sqlUpdateDatetime = "UPDATE DELAYED `syslog_messages` SET `priority` = `priority` + ?, `processed` = ? WHERE `processed` = ? AND `datetime` REGEXP ?;";
-        my $sqlUpdateHost = "UPDATE DELAYED `syslog_messages` SET `priority` = `priority` + ?, `processed` = ? WHERE `processed` = ? AND `host` REGEXP ?;";
-        my $sqlUpdateProgram = "UPDATE DELAYED `syslog_messages` SET `priority` = `priority` + ?, `processed` = ? WHERE `processed` = ? AND `program` REGEXP ?;";
-        my $sqlUpdatePid = "UPDATE DELAYED `syslog_messages` SET `priority` = `priority` + ?, `processed` = ? WHERE `processed` = ? AND `pid` REGEXP ?;";
-        my $sqlUpdateMessage = "UPDATE DELAYED `syslog_messages` SET `priority` = `priority` + ?, `processed` = ? WHERE `processed` = ? AND `message` REGEXP ?;";
-
-        my $sqlMinProcessedStatement = $dbConnection->prepare($sqlMinProcessed);
-        my $sqlUpdateAllStatement = $dbConnection->prepare($sqlUpdateAll);
-    my $sqlUpdateDatetimeStatement = $dbConnection->prepare($sqlUpdateDatetime);
-        my $sqlUpdateHostStatement = $dbConnection->prepare($sqlUpdateHost);
-        my $sqlUpdateProgramStatement = $dbConnection->prepare($sqlUpdateProgram);
-        my $sqlUpdatePidStatement = $dbConnection->prepare($sqlUpdatePid);
-        my $sqlUpdateMessageStatement = $dbConnection->prepare($sqlUpdateMessage);
-
-#   Get the regexes we'll be using
-    our @regexes = initialiseRegexes();
+        my $sqlUpdateAll = "UPDATE LOW_PRIORITY `syslog_messages` SET `priority` = `priority` + ? WHERE `processed` = ? AND `message` REGEXP ? AND `host` REGEXP ? AND `program` REGEXP ? AND `pid` REGEXP ? AND `datetime` REGEXP ?;";
+        my $sqlUpdateDatetime = "UPDATE LOW_PRIORITY `syslog_messages` SET `priority` = `priority` + ? WHERE `processed` = ? AND `datetime` REGEXP ?;";
+        my $sqlUpdateHost = "UPDATE LOW_PRIORITY `syslog_messages` SET `priority` = `priority` + ?, `processed` = ? WHERE `processed` = ? AND `host` REGEXP ?;";
+        my $sqlUpdateProgram = "UPDATE LOW_PRIORITY `syslog_messages` SET `priority` = `priority` + ?, `processed` = ? WHERE `processed` = ? AND `program` REGEXP ?;";
+        my $sqlUpdatePid = "UPDATE LOW_PRIORITY `syslog_messages` SET `priority` = `priority` + ?, `processed` = ? WHERE `processed` = ? AND `pid` REGEXP ?;";
+        my $sqlUpdateMessage = "UPDATE LOW_PRIORITY `syslog_messages` SET `priority` = `priority` + ? WHERE `processed` = ? AND `message` REGEXP ?;";
+        
+        my $stmtMinProcessed = $dbConnection->prepare($sqlMinProcessed);
+        my $stmtUpdateAll = $dbConnection->prepare($sqlUpdateAll);
+        my $stmtUpdateDatetimeOnly = $dbConnection->prepare($sqlUpdateDatetime);
+        my $stmtUpdateHostOnly = $dbConnection->prepare($sqlUpdateHost);
+        my $stmtUpdateProgramOnly = $dbConnection->prepare($sqlUpdateProgram);
+        my $stmtUpdatePidOnly = $dbConnection->prepare($sqlUpdatePid);
+        my $stmtUpdateMessageOnly = $dbConnection->prepare($sqlUpdateMessage);
+        my $stmtSetProcessed = $dbConnection->prepare("UPDATE LOW_PRIORITY `syslog_messages` SET `processed` = ?  WHERE `processed` = ?;");
 
     do {
-        $sqlMinProcessedStatement->execute or clean_stop("Unable to find out least-processed row");
-                my $minProc = ($sqlMinProcessedStatement->fetchrow_array)[0];
+        my @regexes = initialiseRegexes();
+        $stmtMinProcessed->execute or clean_stop("Unable to find out least-processed row");
+        my $minProc = ($stmtMinProcessed->fetchrow_array)[0];
+        $stmtMinProcessed->finish;                          #  Calling finish straight away as there's only one row to fetch, and we have it
 
-                for (my $i = $minProc + 1; $i < $main::regexes; $i++) { #  If any rows have a lower processed number than the number of regexes:
+        for (my $i = $minProc + 1; $i <= $#regexes; $i++) { #  If any rows have a lower processed number than the number of regexes:
 
-                    if (($regexes[$i]{message} != ".*")
-                        and ($regexes[$i]{host} = ".*")
-                        and ($regexes[$i]{program} = ".*")
-                        and ($regexes[$i]{pid} = ".*")
-                        and ($regexes[$i]{datetime} = ".*")) {    #  We can use the faster UpdateMessage statement and save the DB server some time searching.
+            if ($dbg) {
+                say "DEBUG: minProcessed = $minProc";
+                say "DEBUG: regexes length = $#regexes";
+                say "DEBUG: current iteration $i";
+                say "DEBUG: regex at iteration is $regexes[$i]";
+                say "DEBUG: message regex at iteration is $regexes[$i]->{message}";
+            }
+            if (($regexes[$i]->{message} ne ".*")
+                and ($regexes[$i]->{host} and ($regexes[$i]->{host} eq ".*"))
+                and ($regexes[$i]->{program} and ($regexes[$i]->{program} eq ".*"))
+                and ($regexes[$i]->{pid} and ($regexes[$i]->{pid} eq ".*"))
+                and ($regexes[$i]->{datestamp} and ($regexes[$i]->{datestamp} eq ".*"))) {    #  We can use the faster UpdateMessage statement and save the DB server some tim searching
 
-                             my @message = $selectStatement->fetchrow_array;  #   Return one row from the database
-                    }
-                }
-                unless (@message) { sleep 1;};                #   If we haven't received a row, wait a second before trying again
+                $stmtUpdateMessageOnly->bind_param(1, $regexes[$i]->{priority});
+                $stmtUpdateMessageOnly->bind_param(2, $minProc);
+                $stmtUpdateMessageOnly->bind_param(3, $regexes[$i]->{message});
+                $stmtUpdateMessageOnly->execute or clean_stop("Whelp, failed to run the message regex");
+            }else{ #  All more specific regexes (that have been implemented) failed, so we'll use the UpdateAll statement
+                $stmtUpdateAll->bind_param(1, $regexes[$i]->{priority});
+                $stmtUpdateAll->bind_param(2, $minProc);
+                $stmtUpdateAll->bind_param(3, $regexes[$i]->{message});
+                $stmtUpdateAll->bind_param(4, $regexes[$i]->{host});
+                $stmtUpdateAll->bind_param(5, $regexes[$i]->{program});
+                $stmtUpdateAll->bind_param(6, $regexes[$i]->{pid});
+                $stmtUpdateAll->bind_param(7, $regexes[$i]->{datetime});
+                $stmtUpdateAll->execute or clean_stop("Failed to run the UpdateAll statement");
+            }
+        }
+        $stmtSetProcessed->execute(($#regexes, $minProc));  #  Auto-bind length of regex array to processed field, and set that on all rows
+        sleep 120; #  At this point we've iterated through all previously unprocessed regexes, so we sleep before starting again
 
     } while 1;
+
+
 
 
 sub initialiseRegexes {
 
     my @returnArray;
-
     my $dbConnection = DBI->connect('dbi:mysql:syslogng','syslog','secoifjwe')
                             or clean_stop("Failed to connect to database when initialising regexes\n");
-
 #   Grab all regexes from table
     my $sql = "SELECT * FROM `regexes`";
     my $statement = $dbConnection->prepare($sql);
-
     $statement->execute or clean_stop("Failed to load regexes from table");
-
 #   Push each regex onto the return array as a set of key-value pairs
     while (my @row = $statement->fetchrow_array) {
         push @returnArray, {
@@ -104,8 +124,8 @@ sub clean_stop {
 
     $dbConnection->disconnect();
     $pidfile->remove or say "Warning! Couldn't remove PID file, will need to be deleted manually";
-    my $die_message = $_ ? $_ : "Received kill signal, exiting gracefully.\n";
-    exit $die_message;
+    say $_ ? $_ : "Received kill signal, exiting gracefully.\n";
+    exit 0;
 
 }
 
