@@ -53,8 +53,14 @@ function returnMessagesOld() {
         //  Start the connection
         $db_connection = new mysqli("localhost", "syslog", "secoifjwe", "syslogng");
 
-        //  Prepare the SQL query and run it against the DB
-        $query = "SELECT * FROM syslogng.syslog_messages WHERE (ID > " . ((int)$_GET["maxID"] - (int)$_GET["offset"]) . ") AND ( ID < " . $_GET["maxID"] . ");";
+        //  Prepare the SQL query
+        $stmtSelectOld = $mysqli->prepare("SELECT * FROM (SELECT * FROM `syslog_messages` WHERE `ID` < ? AND `priority` > ? ORDER BY `ID` DESC LIMIT 0,?) s ORDER BY ID");
+        //  Set priority to -128 if not defined
+        $minPriority = isset($_GET["minPriority") ? $_GET["minPriority" : -128;
+        //  Bind the parameters 
+        $stmtSelectOld->bind_param(&$_GET["maxID"], &$minPriority, &$_GET["offset"]);
+
+        // $query = "SELECT * FROM syslogng.syslog_messages WHERE (ID > " . ((int)$_GET["maxID"] - (int)$_GET["offset"]) . ") AND ( ID < " . $_GET["maxID"] . ");";
         $result = $db_connection->query($query);
 
         //  Fill a temporary result array with the data retrieved
@@ -93,23 +99,21 @@ function regexAdd() {
     $db_connection = new mysqli("localhost", "syslog", "secoifjwe", "syslogng");
 
     //  Query whether we have an identical regex already
-    $query = "SELECT * FROM syslogng.regexes WHERE `datestamp` = " . $_GET["datetime"] .
-                                               "AND `host` = " . $_GET["host"] .
-                                               "AND `program` = " . $_GET["program"] .
-                                               "AND `pid` = " . $_GET["pid"] .
-                                               "AND `message` = " . $_GET["message"] . ";";
+    $query = "SELECT * FROM syslogng.regexes WHERE `datestamp` = '{$_GET["datetime"]}'
+                                               AND `host` = '{$_GET["host"]}'
+                                               AND `program` = '{$_GET["program"]}'
+                                               AND `pid` = '{$_GET["pid"]}'
+                                               AND `message` = '{$_GET["message"]}';";
 
     $result = $db_connection->query($query);
 
     if (!($result->num_rows > 0)) {
-        $query = "INSERT INTO `syslogng`.`regexes` `ID`, `datestamp`, `host`, `program`, `pid`, `message`, `processed`, `priority`) VALUES (NULL, '" .
-                  $_GET["datetime"] ."', '". $_GET["host"] ."', '". $_GET["program"]  ."', '". $_GET["pid"]  ."', '". $_GET["message"]  ."', 'NULL', '". $_GET["priority"] ."');";
-        $result2 = $db_connection->query($query);
-        while ($row = $result2->fetch_array(MYSQLI_ASSOC)) {
-            error_log("insert failed" . $row);
-        }
+        $query = "INSERT INTO `syslogng`.`regexes` (`ID`, `datestamp`, `host`, `program`, `pid`, `message`, `processed`, `priority`) VALUES (NULL, '{$_GET["datetime"]}', '{$_GET["host"]}', '{$_GET["program"]}', '{$_GET["pid"]}', '{$_GET["message"] }', 'NULL', '{$_GET["priority"]}');";
+        $result2 = $db_connection->query($query); 
+	print( json_encode($result2));
     } else {
-        error_log("row existed");
+        print (json_encode("false"));
+	error_log("row existed $query");
     };
 
 }
