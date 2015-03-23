@@ -104,7 +104,7 @@
 
         function initialiseTable() {
             $.getJSON("response.php", {
-                    command: "getDbLen",
+                    command: "getDbLen"
                 },
 
                 function (dbLength) {

@@ -25,9 +25,9 @@ $pidfile->write;
     my $sqlSelect = "SELECT * FROM `syslog_messages_incoming` LIMIT 0, 1;";
     my $sqlDelete = "DELETE FROM `syslog_messages_incoming` WHERE `ID` = ?;";
     my $sqlInsertOne = "INSERT INTO `syslogng`.`syslog_messages` (`ID`, `datetime`, `host`, `program`, `pid`, `message`, `scanned`, `processed`, `priority`) VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?); ";
-    my $selectStatement = $dbConnection->prepare($sqlSelect);
-    my $deleteStatement = $dbConnection->prepare($sqlDelete);
-    my $insertStatement = $dbConnection->prepare($sqlInsertOne);
+    my $stmtSelectOne = $dbConnection->prepare($sqlSelect);
+    my $stmtDelete = $dbConnection->prepare($sqlDelete);
+    my $stmtInsertOne = $dbConnection->prepare($sqlInsertOne);
 
 
 #   Get the regexes we'll be using
@@ -39,14 +39,14 @@ $pidfile->write;
        
         my @message;
         do {                                              #   SELECT loop will repeat until we get a row
-            $selectStatement->execute or clean_stop("Read thread died after failing to run a s");
-            @message = $selectStatement->fetchrow_array;  #   Return one row from the database
+            $stmtSelectOne->execute or clean_stop("Read thread died after failing to run a s");
+            @message = $stmtSelectOne->fetchrow_array;  #   Return one row from the database
             unless (@message) { sleep 1;};                #   If we haven't received a row, wait a second before trying again
         
         } while !(@message);
 
         #  Delete same row from temporary table, identified by ID
-        $deleteStatement->execute($message[0]) or clean_stop("Write thread died after failing to run a delete statement");
+        $stmtDelete->execute($message[0]) or clean_stop("Write thread died after failing to run a delete statement");
 
         #  Initialisation - set starting processed value, scanned value and starting priority to 0
         my $i = 0;
@@ -72,11 +72,11 @@ $pidfile->write;
         #  Outputting to normal mySQL table
         #  Binding parameters starting at 1 as we don't try to insert the ID.
 	    for (my $i=1; $i<=8; $i++) {
-	        $insertStatement->bind_param( $i, $message[$i]);
+	        $stmtInsertOne->bind_param( $i, $message[$i]);
         }
            
         #  Try to actually insert the value
-        $insertStatement->execute or clean_stop("Write died after failing to write a message to the main database");
+        $stmtInsertOne->execute or clean_stop("Write died after failing to write a message to the main database");
 
     } while 1;  #  Currently not ever breaking out of the loop
 

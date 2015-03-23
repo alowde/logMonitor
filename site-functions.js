@@ -213,6 +213,10 @@ function selectionClear(columnID){
 
         regexToCommit.command = "regexAdd";
 
+        if (document.getElementById("debug-mode").checked) {
+            console.log(regexToCommit);
+        };
+
         $.getJSON("response.php", regexToCommit, function (response) {
                     console.log(response);
                 }

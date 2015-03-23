@@ -58,12 +58,8 @@ function returnMessagesOld() {
     //  Set priority to -128 if not defined
     $minPriority = isset($_GET["minPriority"]) ? $_GET["minPriority"] : -128;
     //  Bind the parameters and execute the statement
-/*    $maxIdRef = &$_GET["maxID"];
-    $minPriRef = &$minPriority;
-    $offsetRef = &$_GET["offset"]; //  Suspect we don't need to pass by reference, based on example from php.net */
-    $stmtSelectOld->bind_param($_GET["maxID"], $minPriority, $_GET["offset"]);
+    $stmtSelectOld->bind_param("iii",$_GET["maxID"], $minPriority, $_GET["offset"]);
     $stmtSelectOld->execute();
-
     $result = $stmtSelectOld->get_result();
     //  Fill a temporary result array with the data retrieved
     while ($row = $result->fetch_array(MYSQLI_ASSOC)) {
@@ -94,7 +90,7 @@ function regexAdd() {
     //  Start the connection
     $db_connection = new mysqli("localhost", "syslog", "secoifjwe", "syslogng");
     //  Query whether we have an identical regex already
-    $query = "SELECT * FROM syslogng.regexes WHERE `datestamp` = '{$_GET["datetime"]}'
+    $query = "SELECT `ID` FROM syslogng.regexes WHERE `datestamp` = '{$_GET["datetime"]}'
                                                AND `host` = '{$_GET["host"]}'
                                                AND `program` = '{$_GET["program"]}'
                                                AND `pid` = '{$_GET["pid"]}'
@@ -105,10 +101,10 @@ function regexAdd() {
     if (!($result->num_rows > 0)) {
         $query = "INSERT INTO `syslogng`.`regexes` (`ID`, `datestamp`, `host`, `program`, `pid`, `message`, `processed`, `priority`) VALUES (NULL, '{$_GET["datetime"]}', '{$_GET["host"]}', '{$_GET["program"]}', '{$_GET["pid"]}', '{$_GET["message"] }', 'NULL', '{$_GET["priority"]}');";
         $result2 = $db_connection->query($query); 
-	print( json_encode($result2));
+	    print( json_encode($result2));
     } else {
         print (json_encode("false"));
-	error_log("row existed $query");
+	error_log("Regex existed under ID $result->fetch_assoc()");
     };
 
 }

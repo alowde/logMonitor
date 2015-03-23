@@ -99,19 +99,22 @@
 	border-width:0px 0px 1px 1px;
 }
 .upArrow {
-	background-image:url('resources/up.jpg');
-	background-repeat:no-repeat;
-	background-position:center;
-	background-color:white;
 	cursor:pointer;
 }
+.upArrow:active {
+    position:relative;
+    top:3px;
+}
+
 .downArrow {
-	background-image:url('resources/down.jpg');
-	background-repeat:no-repeat;
-	background-position:center;
-	background-color:white;
 	cursor:pointer;
 }
+.downArrow:active {
+    position:relative;
+    top:3px;
+
+}
+
 .selection {
     background-color: yellow;
 }
@@ -122,18 +125,9 @@
 }
 
 .upArrowSvg {
-        background-image:url('up.svg');
-        background-repeat:no-repeat;
-        background-position:center;
-        cursor:pointer;
-	background-size: auto 75px;
 }
 
 .downArrowSvg {
-        background-image:url('down.svg');
-        background-repeat:no-repeat;
-        background-position:center;
-        cursor:pointer;
         background-size: auto 75px;
 }
 

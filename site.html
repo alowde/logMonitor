@@ -86,15 +86,25 @@
 
 <body style="background-color: #2e3033">
 
+    <form><input type="checkbox" id="debug-mode"><span style="background-color: gray; font-family: sans-serif; font-size: small;"> Debug Mode</span></input></form>
     <div style="position:fixed; top:40%; right:10px; z-index:10; height: 200px; width: 150px; overflow: hidden;" class="floatDiv" id="settingsOuter">
 	<div style="background-color: #B8B881; border-top-left-radius: 10px; border-top-right-radius: 10px; z-index:11; text-align: center; padding: 3px; height: 15px">
 		Settings
 	</div>
-	<div style="z-index:10; text-align: center; padding: 3px; height: 152px;" id="settingsInner">
-		<div class="upArrowSvg" style="height: 75px" onclick="selectionCommit(1)" id="upArrow">
-		</div>
+	<div style="z-index:10; text-align: center; padding: 3px; height: 152px; overflow: hidden;" id="settingsInner">
+		<div style="height: 75px" onclick="selectionCommit(1)">
+		    <img src='up.svg' height=75px class="upArrow" />
+        </div>
 		<div class="downArrowSvg" style="height: 75px" onclick="selectionCommit(-1)">
-                </div>
+            <img src='down.svg' height=75px class="downArrow" />
+        </div>
+        <div style="padding: 10px;">
+            <form>
+                <span style="white-space: nowrap;">Threshold: <input type="number" name="threshold" min="-100" max="100" value="0"></span>
+                <p><input type="submit" value="Submit"></p>
+            </form>
+            
+        </div>
 	</div>
 	<div style="background-color: #B8B881; text-align: center; padding: 3px; height: 15px; z-index:10;" onclick="resizeSettingsDiv()">
 		...	
@@ -126,7 +136,7 @@
 
 	window.setInterval(scrollISR,200);
 
-	window.setInterval(newMsgISR,5000); // May need to be decreased if we're logging a high number of messages
+	//window.setInterval(newMsgISR,5000); // May need to be decreased if we're logging a high number of messages
 
         });
     </script>
@@ -135,5 +145,3 @@
 </body>
 
 </html>
-
-
