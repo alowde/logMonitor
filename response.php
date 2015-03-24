@@ -89,14 +89,20 @@ function regexAdd() {
 
     //  Start the connection
     $db_connection = new mysqli("localhost", "syslog", "secoifjwe", "syslogng");
-    //  Query whether we have an identical regex already
-    $query = "SELECT `ID` FROM syslogng.regexes WHERE `datestamp` = '{$_GET["datetime"]}'
+
+    //  Pre-prepare our queries
+    $stmtSearchRegexes = $db_connection->prepare("SELECT `ID` FROM syslogng.regexes WHERE `datestamp` = ? AND `host` = ? AND `program` = ? AND `pid` = ? AND `message` = ?");
+
+    /*$query = "SELECT `ID` FROM syslogng.regexes WHERE `datestamp` = '{$_GET["datetime"]}'
                                                AND `host` = '{$_GET["host"]}'
                                                AND `program` = '{$_GET["program"]}'
                                                AND `pid` = '{$_GET["pid"]}'
                                                AND `message` = '{$_GET["message"]}';";
-
-    $result = $db_connection->query($query);
+    */
+    //  Query whether we have an identical regex already
+    $stmtSearchRegexes->bind_param("sssss", $_GET["datetime"], $_GET["host"], $_GET["program"], $_GET["pid"], $_GET["message"]);
+    $stmtSearchRegexes->execute();
+    $result = $stmtSearchRegexes->get_result();
 
     if (!($result->num_rows > 0)) {
         $query = "INSERT INTO `syslogng`.`regexes` (`ID`, `datestamp`, `host`, `program`, `pid`, `message`, `processed`, `priority`) VALUES (NULL, '{$_GET["datetime"]}', '{$_GET["host"]}', '{$_GET["program"]}', '{$_GET["pid"]}', '{$_GET["message"] }', 'NULL', '{$_GET["priority"]}');";
@@ -104,7 +110,7 @@ function regexAdd() {
 	    print( json_encode($result2));
     } else {
         print (json_encode("false"));
-	error_log("Regex existed under ID $result->fetch_assoc()");
+        error_log("Regex existed under ID" . $result->fetch_array(MYSQL_NUM)[0]);
     };
 
 }
