@@ -91,40 +91,57 @@ function regexAdd() {
     $db_connection = new mysqli("localhost", "syslog", "secoifjwe", "syslogng");
 
     //  Pre-prepare our queries
-    $stmtSearchRegexes = $db_connection->prepare("SELECT `ID` FROM syslogng.regexes WHERE `datestamp` = ? AND `host` = ? AND `program` = ? AND `pid` = ? AND `message` = ?");
+    $stmtSearchRegexes = $db_connection->prepare("SELECT `ID`, `priority` FROM syslogng.regexes WHERE `datestamp` = ? AND `host` = ? AND `program` = ? AND `pid` = ? AND `message` = ?");
+    $stmtInsertRegex = $db_connection->prepare("INSERT INTO `syslogng`.`regexes` (`datestamp`, `host`, `program`, `pid`, `message`, `priority`) VALUES (?, ?, ?, ?, ?, ?)");
+    $stmtUpdateRegexPri = $db_connection->prepare("UPDATE syslogng.regexes SET `priority` = ? WHERE `ID` = ?");
 
-    /*$query = "SELECT `ID` FROM syslogng.regexes WHERE `datestamp` = '{$_GET["datetime"]}'
-                                               AND `host` = '{$_GET["host"]}'
-                                               AND `program` = '{$_GET["program"]}'
-                                               AND `pid` = '{$_GET["pid"]}'
-                                               AND `message` = '{$_GET["message"]}';";
-    */
-    //  Query whether we have an identical regex already
-    $stmtSearchRegexes->bind_param("sssss", $_GET["datetime"], $_GET["host"], $_GET["program"], $_GET["pid"], $_GET["message"]);
+    //  Check for an identical regex
+    $stmtSearchRegexes->bind_param("sssss", $_POST["datetime"], $_POST["host"], $_POST["program"], $_POST["pid"], $_POST["message"]);
     $stmtSearchRegexes->execute();
-    $result = $stmtSearchRegexes->get_result();
+    $stmtSearchRegexesResult = $stmtSearchRegexes->get_result();
 
-    if (!($result->num_rows > 0)) {
-        $query = "INSERT INTO `syslogng`.`regexes` (`ID`, `datestamp`, `host`, `program`, `pid`, `message`, `processed`, `priority`) VALUES (NULL, '{$_GET["datetime"]}', '{$_GET["host"]}', '{$_GET["program"]}', '{$_GET["pid"]}', '{$_GET["message"] }', 'NULL', '{$_GET["priority"]}');";
-        $result2 = $db_connection->query($query); 
-	    print( json_encode($result2));
+    if (!($stmtSearchRegexesResult->num_rows > 0)) {
+        // Didn't find anything, so we'll insert our new regex
+        $stmtInsertRegex->bind_param("sssssi", $_POST["datetime"], $_POST["host"], $_POST["program"], $_POST["pid"], $_POST["message"], $_POST["priority"]);
+        // If there's an error return that, otherwise return "OK"
+        print ($stmtInsertRegex->execute() ? json_encode("OK") : $stmtInsertRegex->error);
     } else {
-        print (json_encode("false"));
-        error_log("Regex existed under ID" . $result->fetch_array(MYSQL_NUM)[0]);
+        // There's already a matching regex, so we'll change the priority on that one
+        $searchResult  = $stmtSearchRegexesResult->fetch_assoc();
+        $stmtUpdateRegexPri->bind_param("ii", intval($searchResult["priority"] + $_POST["priority"]), $searchResult["ID"]);
+        $stmtUpdateRegexPri->execute();
+        print( json_encode("Found regex object $searchResult, updating with priority " . $_POST['priority']) );
     };
 
 }
 
-if (isset( $_GET["command"] )) {
-	if ($_GET["command"] == "getDbLen") {
-		returnDbLength();
-	} elseif ( $_GET["command"] == "getMessagesNew") {
-		returnMessagesNew();
-	} elseif ( $_GET["command"] == "getMessagesOld") {
-		returnMessagesOld();
-    } elseif ( $_GET["command"] == "regexAdd") {
-        regexAdd();
-	}
+if (isset($_GET["command"])) {
+	switch ($_GET["command"]) {
+        case "getDbLen":
+            returnDbLength();
+            break;
+        case "getMessagesNew":
+            returnMessagesNew();
+            break;
+        case "getMessagesOld":
+            returnMessagesOld();
+            break;
+        case "regexAdd":
+            echo "regexAdd's not here man...";
+            break;
+        default:
+            echo "Received a GET command I didn't understand.";
+    }
+} elseif (isset($_POST["command"])) {
+    switch ($_POST["command"]) {
+        case "regexAdd":
+            regexAdd();
+            break;
+        default:
+            echo "Received a POST command I didn't understand.";
+    }
+} else {
+    echo "&ltlurch&gt You rang? &lt/lurch&gt";
 }
 
 

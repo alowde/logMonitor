@@ -56,29 +56,32 @@ function requestNew(numRows, callback) {
 }
 
 // Requests old rows from the server and concatenates them to the start of the data array
-function requestOld(numRows, callback) {
+function requestOld(numRows, renderOnLoad) {
 
     // If there's no records yet, just start at 0. If there is, start with the ID of the first record
     var arrayMinValue = recordSet[0] ? recordSet[0].ID : 0;
 
-    var tempArray = [];
-
-    $.getJSON("response.php", {
-            command: "getMessagesOld",
-            maxID: arrayMinValue,
-            offset: numRows
-        },
-        function (data) {
-            $.each(data, function (key, rowObject) {
-                tempArray[key] = $.parseJSON(rowObject);
-            });
-            recordSet = tempArray.concat(recordSet);
-            if (callback) {
-                renderOld(30);
-            } // Yeah, yeah, this should really be a callback on complete instead of munged into th
-
-        }
-    );
+    if (dataInFlight == false) {
+        dataInFlight = true;
+        $.getJSON("response.php", {
+                command: "getMessagesOld",
+                maxID: arrayMinValue,
+                offset: numRows
+            },
+            function (data) {
+                var tempArray = [];
+                $.each(data, function (key, rowObject) {
+                    tempArray[key] = $.parseJSON(rowObject);
+                });
+                // What's this needed for?
+                recordSet = tempArray.concat(recordSet);
+                if (renderOnLoad) {
+                    renderOld(30);
+                } // Yeah, yeah, this should really be a callback on complete instead of munged into th
+                dataInFlight = false;
+            }
+        );
+    }
 }
 
 // Gets rows from the data array and adds to the end of the currently shown list
@@ -89,11 +92,11 @@ function renderOld(numRows) {
 
     var currentMinDisplay = ($("tr").last().attr('id').substring(3));
 
-    for (i = 0;; i++) {
+    for (var i = 0;; i++) {
 
         if (currentMinDisplay == recordSet[i].ID) {
             break;
-        } // Breaking the loop manually if we hit the current minimum. Maybe change later
+        } // Should be part of the loop declaration
 
         $("#row" + currentMinDisplay).after("<tr id=\"row" + recordSet[i].ID + "\" onmouseup=\"selectionAdd()\">"); // Add the row
 
@@ -110,21 +113,24 @@ function renderOld(numRows) {
 
 // Initialisation function, calls server and fills our initial table data
 function initialiseTable() {
-    //noinspection JSHint
+    //  Make a getJSON call asking for the DB length, and set a callback to process that
     $.getJSON("response.php", {
             command: "getDbLen"
         },
-
+        //  Now we have the DB length, make a getJSON call for newMessages and set a callback to process them
         function (dbLength) {
             $.getJSON("response.php", {
                     command: "getMessagesNew",
                     minID: (dbLength - 30),
                     offset: 30
                 },
+                // Now we have a response from newMessages, add the resulting data to the table
                 function (data) {
+                    //  For each element in the returned data strip the packaging JSON and put the result in the recordSet array
                     $.each(data, function (key, rowObject) {
                         recordSet[key + 0] = $.parseJSON(rowObject);
                     });
+                    //  Now iterate through the recordSet array and turn each element into an HTML row, then each element in the row into a cell
                     $.each(recordSet, function (key, data) {
                         $("#title").after("<tr id=\"row" + recordSet[key].ID + "\" onmouseup=\"selectionAdd()\">");
                         $.each(recordSet[key], function (id, value) {
@@ -132,10 +138,10 @@ function initialiseTable() {
                                 $("#row" + recordSet[key].ID).append("<td id=\"" + id + "\">" + value + "</td>");
                             }
                         });
-                        //$("#row" + recordSet[key].ID).append("<td class=\"upArrow\" id=\"up" + recordSet[key].ID + "\">&nbsp&nbsp</td>" +
-                        //    "<td class=\"downArrow\" id=\"down" + recordSet[key].ID + "\">&nbsp&nbsp</td>");
-
                     });
+                    //  Last but not least, now we've finished initialising the page we can enable some timed service routines
+                    window.setInterval(scrollISR,200);
+                    window.setInterval(newMsgISR,5000);
                 }
             );
         });
@@ -170,12 +176,11 @@ function selectionClear(columnID){
     if (updownvote == '1') {
         $('#upArrow').height(80);
         $('#upArrow').css('background-size:', 'auto, 80px');
-        console.log("Upsized");
     };
 
-        $("span:first-child").each(function(){                  // For each <span> element that's the first <span> in it's cell
+     $("span:first-child").each(function(){                  // For each <span> element that's the first <span> in it's cell
                                                                 // I.e., for each cell with a span element
-            var cellHTML = this.parentNode.innerHTML;           // Grab the cell HTML
+         var cellHTML = this.parentNode.innerHTML;           // Grab the cell HTML
             cellHTML.replace(/([\.\\\+\*\?\[\^\]\$\(\)])/g, '\\$1');    // Escape any regex characters that will mess with us later
             if (cellHTML.match(/^<span class="selection">/)) {                  // If the selected text starts at line start
                 cellHTML = cellHTML.replace(/^<span class="selection">/,'^');   // Just remove the first tag

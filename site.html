@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html xmlns="http://www.w3.org/1999/html">
 
 <head>
 
@@ -17,9 +17,14 @@
 
     <script>
 
+    // Does this need to be declared here, or is it an unnecessary global?
     recordSet = [];
-
 	currentRegex = {rowID:0};
+
+    // Tracks whether a data request is currently underway
+    // It's an ugly hack to ensure sequential processing in an asynchronous world, needs to be re-architected in future
+    var dataInFlight = false;
+
 
 	// Interrupt service function handling scrolling
 
@@ -86,7 +91,7 @@
 
 <body style="background-color: #2e3033">
 
-    <form><input type="checkbox" id="debug-mode"><span style="background-color: gray; font-family: sans-serif; font-size: small;"> Debug Mode</span></input></form>
+    <form><input type="checkbox" id="debug-mode"><label for="debug-mode" style="background-color: gray; font-family: sans-serif; font-size: small;">Debug Mode</label> </form>
     <div style="position:fixed; top:40%; right:10px; z-index:10; height: 200px; width: 150px; overflow: hidden;" class="floatDiv" id="settingsOuter">
 	<div style="background-color: #B8B881; border-top-left-radius: 10px; border-top-right-radius: 10px; z-index:11; text-align: center; padding: 3px; height: 15px">
 		Settings
@@ -100,7 +105,7 @@
         </div>
         <div style="padding: 10px;">
             <form>
-                <span style="white-space: nowrap;">Threshold: <input type="number" name="threshold" min="-100" max="100" value="0"></span>
+                <span style="white-space: nowrap;"><label for="threshold">Threshold: </label><input type="number" id="threshold" min="-100" max="100" value="0" size="2" style="width: 40px;"></span>
                 <p><input type="submit" value="Submit"></p>
             </form>
             
@@ -134,8 +139,8 @@
 
 	initialiseTable();
 
-	window.setInterval(scrollISR,200);
-
+    // These ISRs are now started by the initialiseTable function to make sure we're ready for them
+	//window.setInterval(scrollISR,200);
 	//window.setInterval(newMsgISR,5000); // May need to be decreased if we're logging a high number of messages
 
         });
