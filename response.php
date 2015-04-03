@@ -10,13 +10,6 @@
 */
 
 
-//  Adding an error handler for failed connections to database
-/*  This doesn't seem to do anything...
-if (mysqli_connect_errno()) {
-    error_log ("DB Connect failed: " . $db_connection( mysqli_connect_error()));
-    exit();
-} 
-*/
 //  Returns up to offset rows, the oldest being the row with ID minID
 //
 //  Expects to have GET variables minID, offset defined
@@ -28,8 +21,14 @@ function returnMessagesNew() {
 	$db_connection = new mysqli("localhost", "syslog", "secoifjwe", "syslogng");
 
 	//  Prepare the SQL query and run it against the DB
-	$query = "SELECT * FROM syslogng.syslog_messages LIMIT " . $_GET["minID"] . "," . $_GET["offset"] . ";";
-	$result = $db_connection->query($query);
+    $stmtSelectNew = $db_connection->prepare("SELECT * FROM syslogng.syslog_messages WHERE `priority` > ? LIMIT ?,?");
+    //  Set priority to -128 if not defined
+    $minPriority = isset($_GET["minPriority"]) ? $_GET["minPriority"] : -128;
+    $stmtSelectNew->bind_param("iii", $minPriority, $_GET["minID"], $_GET["offset"]);
+	if (!$stmtSelectNew->execute()){
+        print($stmtSelectNew->error);
+    };
+    $result = $stmtSelectNew->get_result();
 
 	//  Fill a temporary result array with the data retrieved
 	while ($row = $result->fetch_array(MYSQLI_ASSOC)) {
@@ -37,11 +36,14 @@ function returnMessagesNew() {
 	}
 
 	//  Return JSON (if any results were received)
-	
 	if (isset($rows)) {
-	    print( json_encode(  $rows ));
-	};
-}
+        print(json_encode($rows));
+    }
+    else {
+        print("Hmm...");
+    }
+};
+
 
 //  Returns up to offset rows, the oldest being the row with ID minID
 //
@@ -54,7 +56,7 @@ function returnMessagesOld() {
     $db_connection = new mysqli("localhost", "syslog", "secoifjwe", "syslogng");
 
     //  Prepare the SQL query
-    $stmtSelectOld = $db_connection->prepare("SELECT * FROM (SELECT * FROM `syslog_messages` WHERE `ID` < ? AND `priority` > ? ORDER BY `ID` DESC LIMIT 0,?) s ORDER BY ID");
+    $stmtSelectOld = $db_connection->prepare("SELECT * FROM (SELECT * FROM `syslog_messages` WHERE `ID` < ? AND `priority` > ? ORDER BY `ID` DESC LIMIT 0,?) s ORDER BY ID;");
     //  Set priority to -128 if not defined
     $minPriority = isset($_GET["minPriority"]) ? $_GET["minPriority"] : -128;
     //  Bind the parameters and execute the statement
@@ -70,6 +72,7 @@ function returnMessagesOld() {
     if (isset($rows)) {
         print( json_encode(  $rows ));
     } else {
+        print("Hmmm...");
 	};
 }
 
