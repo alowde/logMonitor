@@ -25,6 +25,10 @@
     // It's an ugly hack to ensure sequential processing in an asynchronous world, needs to be re-architected in future
     var dataInFlight = false;
 
+    // A better way - store a global for the timer and disable the timer when data is in flight
+    var scrollISRInterval;
+
+    var titleRow;
 
 	// Interrupt service function handling scrolling
 
@@ -43,46 +47,63 @@
 
 	}
 
-/*	function sandbox() {
-
-        $("span:first-child").each(function(){                  // For each <span> element that's the first <span> in it's cell
-            var cellHTML = this.parentNode.innerHTML;
-            cellHTML = cellHTML.replace(/^.*?<span class="selection">/,'__'); // Remove non-selected text from the start to the first span tag, including the tag
-            while (cellHTML.match(/<span class="selection">/)){
-                cellHTML = cellHTML.replace(/<\/span>.*?<span class="selection">/,'__'); // As above for each middle tag
-            }
-            cellHTML = cellHTML.replace(/<\/span>.*$/,'__');                  // And again for the final tag
-            //console.log(this.parentNode.innerHTML);
-            console.log(cellHTML);
-        });
-	}
-*/
-    
     function resizeSettingsDiv() {
 
-	$outerdiv = $( "#settingsOuter" );
-	$innerdiv = $( "#settingsInner" );
+        var $outerdiv = $("#settingsOuter");
+        var $innerdiv = $("#settingsInner");
 
-	var grow = {
-	    transition : 'top 0.75s ease',
-	    top : '20%'
-	};
-
-	var shrink = {
-            transition : 'top 0.75s ease',
-            top : '40%'
+        var grow = {
+            transition: 'top 0.75s ease',
+            top: '20%'
         };
 
+        var shrink = {
+            transition: 'top 0.75s ease',
+            top: '40%'
+        };
 
-	if ( $outerdiv.height() === 200) {
-	    $outerdiv.height(400);
-  	    $outerdiv.css(grow);
-	    $innerdiv.height(352);
-	} else {
-	    $outerdiv.height(200);
+        if ($outerdiv.height() === 200) {
+            $outerdiv.height(400);
+            $outerdiv.css(grow);
+            $innerdiv.height(352);
+        } else {
+            $outerdiv.height(200);
             $outerdiv.css(shrink);
-	    $innerdiv.height(152);
-	}
+            $innerdiv.height(152);
+        }
+    }
+
+    // Re-renders the entire table from the global recordSet array
+    function rerender() {
+        clearInterval(scrollISRInterval);
+        $("[id^='row']").remove();
+        console.log(recordSet);
+        console.log(document.getElementById("threshold").value);
+        titleRow = $("#title"); // can probably set this once the table is first built, or even onLoad
+        recordSet.forEach(addRow);
+    }
+
+
+    function addRow(record, id){
+        console.log("Visible here: " );
+        if (record.priority >= document.getElementById("threshold").value){
+            console.log(record);
+            titleRow.after("<tr id=\"row" + record.ID + "\" onmouseup=\"selectionAdd()\">");
+            // For now I'm manually iterating through the values. Needs to be replaced with an object method.
+            var currentRow = $("#row" + record.ID);
+            currentRow.append("<td class='ID'>" + record.ID + "</td>");
+            currentRow.append("<td class='datetime'>" + record.datetime + "</td>");
+            currentRow.append("<td class='host'>" + record.host + "</td>");
+            currentRow.append("<td class='program'>" + record.program + "</td>");
+            currentRow.append("<td class='pid'>" + record.pid + "</td>");
+            currentRow.append("<td class='message'>" + record.message + "</td>");
+        }
+    }
+
+    function addCell(value, cellName, record){
+        if (cellName != "scanned" && cellName != "processed" && cellName != "priority") {
+            $("#row" + record.ID).append("<td class=\"" + cellName + "\">" + value + "</td>");
+        }
     }
 
     </script>
@@ -92,6 +113,7 @@
 <body style="background-color: #2e3033">
 
     <form><input type="checkbox" id="debug-mode"><label for="debug-mode" style="background-color: gray; font-family: sans-serif; font-size: small;">Debug Mode</label> </form>
+    <div id="debugoutput"></div>
     <div style="position:fixed; top:40%; right:10px; z-index:10; height: 200px; width: 150px; overflow: hidden;" class="floatDiv" id="settingsOuter">
 	<div style="background-color: #B8B881; border-top-left-radius: 10px; border-top-right-radius: 10px; z-index:11; text-align: center; padding: 3px; height: 15px">
 		Settings
@@ -119,9 +141,9 @@
 -->
     </div>
 
-<!--    <button onclick="sandbox()">Call sandbox()</button>
-    <button onclick="selectionCommit()">Call selectionCommit()</button>
--->
+    <button onclick="rerender()">Call sandbox()</button>
+<!--    <button onclick="selectionCommit()">Call selectionCommit()</button>-->
+
     <div class="blueTable" style="position:relative; top:20px; left:20px;">
         <table id="mainTable" oncontextmenu="selectionClear(); return false;">
             <tr id="title">
@@ -136,8 +158,7 @@
     </div>
     <script>
         $(document).ready(function () {
-
-	initialiseTable();
+     	initialiseTable();
 
     // These ISRs are now started by the initialiseTable function to make sure we're ready for them
 	//window.setInterval(scrollISR,200);
@@ -145,6 +166,7 @@
 
         });
     </script>
+
 
 
 </body>

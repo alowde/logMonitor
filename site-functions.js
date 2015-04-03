@@ -1,3 +1,23 @@
+function record(ID, datetime, host, program, pid, message, priority, processed, scanned) {
+    this.ID = ID;
+    this.datetime = datetime;
+    this.host = host;
+    this.program = program;
+    this.pid = pid;
+    this.message = message;
+    this.priority = priority;
+    this.processed = processed;
+    this.scanned = scanned;
+}
+record.prototype.toHtmlCell = function () {
+    return ("<td class='ID'>" + this.ID + "</td> " +
+    "<td class='datetime'>" + this.datetime + "</td>" +
+    "<td class='host'>" + this.host + "</td>" +
+    "<td class='program'>" + this.program + "</td>" +
+    "<td class='pid'>" + this.pid + "</td>" +
+    "<td class='message'>" + this.message + "</td>");
+};
+
 function renderNew(numRows) {
 
     if ($("#title").next().length == 0) {
@@ -73,7 +93,6 @@ function requestOld(numRows, renderOnLoad) {
                 $.each(data, function (key, rowObject) {
                     tempArray[key] = $.parseJSON(rowObject);
                 });
-                // What's this needed for?
                 recordSet = tempArray.concat(recordSet);
                 if (renderOnLoad) {
                     renderOld(30);
@@ -121,31 +140,37 @@ function initialiseTable() {
         function (dbLength) {
             $.getJSON("response.php", {
                     command: "getMessagesNew",
-                    minID: (dbLength - 30),
+                    minID: (dbLength - 30), // TODO: Fix this to support an initial non-zero threshold
                     offset: 30
                 },
                 // Now we have a response from newMessages, add the resulting data to the table
                 function (data) {
                     //  For each element in the returned data strip the packaging JSON and put the result in the recordSet array
                     $.each(data, function (key, rowObject) {
-                        recordSet[key + 0] = $.parseJSON(rowObject);
+                        // recordSet[key + 0] = $.parseJSON(rowObject);
+                        // parsing the JSON once for speed
+                        var temp = $.parseJSON(rowObject);
+                        // Currently we're manually setting the properties of the record. Less flexible than dynamically searching the JSON for matching keys, but eh.
+                        recordSet[key + 0] = new record(temp.ID, temp.datetime, temp.host, temp.program, temp.pid, temp.message, temp.priority)
                     });
                     //  Now iterate through the recordSet array and turn each element into an HTML row, then each element in the row into a cell
                     $.each(recordSet, function (key, data) {
                         $("#title").after("<tr id=\"row" + recordSet[key].ID + "\" onmouseup=\"selectionAdd()\">");
-                        $.each(recordSet[key], function (id, value) {
-                            if (id != "scanned" && id != "processed" && id != "priority") {
-                                $("#row" + recordSet[key].ID).append("<td id=\"" + id + "\">" + value + "</td>");
-                            }
-                        });
+                        $("#row" + recordSet[key].ID).append(recordSet[key].toHtmlCell());
                     });
-                    //  Last but not least, now we've finished initialising the page we can enable some timed service routines
-                    window.setInterval(scrollISR,200);
-                    window.setInterval(newMsgISR,5000);
-                }
-            );
-        });
+                });
+            //  Last but not least, now we've finished initialising the page we can enable some timed service routines
+            //scrollISRInterval = window.setInterval(scrollISR,200);
+            window.setInterval(scrollISR, 200);
+            window.setInterval(newMsgISR, 5000);
+
+
+        }
+    );
 }
+
+
+
 
 // Removes all highlights from the document
 function selectionClear(columnID){
@@ -161,7 +186,7 @@ function selectionClear(columnID){
 
 }
 
- function selectionCommit(updownvote) {
+function selectionCommit(updownvote) {
 
         var regexToCommit = {       // We create the regex with the default pattern for each field, [match all]
                 datetime: '.*',
@@ -229,7 +254,7 @@ function selectionClear(columnID){
 
     }
 
-    function selectionAdd() {
+function selectionAdd() {
 
         var workingRowId;
         var rangeObj;                            // The rangeObj object is used specifically when manipulating selected text, can't do it directly
