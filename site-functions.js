@@ -41,13 +41,7 @@ function renderNew(numRows) {
     for (i = oldMaxRecordSet; i <= oldMaxRecordSet + numRows; i++) { // TODO: add a try...catch loop to handle the TypeError when we try to use undefined recordSets
 
         $("#title").after("<tr id=\"row" + recordSet[i].ID + "\" onmouseup=\"selectionAdd()\">");
-        $.each(recordSet[i], function (id, value) {
-            if (id != "scanned" && id != "processed" && id != "priority") {
-                $("#row" + recordSet[i].ID).append("<td id=\"" + id + "\">" + value + "</td>");
-            }
-        });
-        //$("#row" + recordSet[i].ID).append("<td class=\"upArrow\" id=\"up" + recordSet[i].ID + "\">&nbsp&nbsp</td>" +
-        //    "<td class=\"downArrow\" id=\"down" + recordSet[i].ID + "\">&nbsp&nbsp</td>");
+        $("#row" + recordSet[i].ID).append(recordSet[i].toHtmlCell());
     }
 }
 
@@ -65,7 +59,8 @@ function requestNew(numRows, callback) {
         },
         function (data) {
             $.each(data, function (key, rowObject) {
-                recordSet[arrayLength + key] = $.parseJSON(rowObject);
+                var temp = $.parseJSON(rowObject);
+                recordSet[arrayLength + key] = new record(temp.ID, temp.datetime, temp.host, temp.program, temp.pid, temp.message, temp.priority)
             });
             if (callback) {
                 renderNew(50);
@@ -91,7 +86,8 @@ function requestOld(numRows, renderOnLoad) {
             function (data) {
                 var tempArray = [];
                 $.each(data, function (key, rowObject) {
-                    tempArray[key] = $.parseJSON(rowObject);
+                    var temp = $.parseJSON(rowObject);
+                    tempArray[key] = new record(temp.ID, temp.datetime, temp.host, temp.program, temp.pid, temp.message, temp.priority)
                 });
                 recordSet = tempArray.concat(recordSet);
                 if (renderOnLoad) {
@@ -118,14 +114,7 @@ function renderOld(numRows) {
         } // Should be part of the loop declaration
 
         $("#row" + currentMinDisplay).after("<tr id=\"row" + recordSet[i].ID + "\" onmouseup=\"selectionAdd()\">"); // Add the row
-
-        $.each(recordSet[i], function (id, value) { // Add a cell for each non-hidden record field
-            if (id !== "scanned" && id !== "processed" && id !== "priority") {
-                $("#row" + recordSet[i].ID).append("<td id=\"" + id + "\">" + value + "</td>");
-            }
-        });
-        //$("#row" + recordSet[i].ID).append("<td class=\"upArrow\" id=\"up" + recordSet[i].ID + "\">&nbsp&nbsp</td>" + // Add a cell
-        //    "<td class=\"downArrow\" id=\"down" + recordSet[i].ID + "\">&nbsp&nbsp</td>"); // Add a cell
+        $("#row" + recordSet[i].ID).append(recordSet[i].toHtmlCell());
 
     }
 }
@@ -147,7 +136,6 @@ function initialiseTable() {
                 function (data) {
                     //  For each element in the returned data strip the packaging JSON and put the result in the recordSet array
                     $.each(data, function (key, rowObject) {
-                        // recordSet[key + 0] = $.parseJSON(rowObject);
                         // parsing the JSON once for speed
                         var temp = $.parseJSON(rowObject);
                         // Currently we're manually setting the properties of the record. Less flexible than dynamically searching the JSON for matching keys, but eh.
