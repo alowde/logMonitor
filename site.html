@@ -87,16 +87,8 @@
     function addRow(record, id){
         console.log("Visible here: " );
         if (record.priority >= document.getElementById("threshold").value){
-            console.log(record);
             titleRow.after("<tr id=\"row" + record.ID + "\" onmouseup=\"selectionAdd()\">");
-            // For now I'm manually iterating through the values. Needs to be replaced with an object method.
-            var currentRow = $("#row" + record.ID);
-            currentRow.append("<td class='ID'>" + record.ID + "</td>");
-            currentRow.append("<td class='datetime'>" + record.datetime + "</td>");
-            currentRow.append("<td class='host'>" + record.host + "</td>");
-            currentRow.append("<td class='program'>" + record.program + "</td>");
-            currentRow.append("<td class='pid'>" + record.pid + "</td>");
-            currentRow.append("<td class='message'>" + record.message + "</td>");
+            $("#row" + record.ID).append(record.toHtmlCell());
         }
     }
 

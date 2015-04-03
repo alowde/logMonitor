@@ -1,4 +1,4 @@
-function record(ID, datetime, host, program, pid, message, priority, processed, scanned) {
+function Record(ID, datetime, host, program, pid, message, priority, processed, scanned) {
     this.ID = ID;
     this.datetime = datetime;
     this.host = host;
@@ -9,7 +9,7 @@ function record(ID, datetime, host, program, pid, message, priority, processed, 
     this.processed = processed;
     this.scanned = scanned;
 }
-record.prototype.toHtmlCell = function () {
+Record.prototype.toHtmlCell = function () {
     return ("<td class='ID'>" + this.ID + "</td> " +
     "<td class='datetime'>" + this.datetime + "</td>" +
     "<td class='host'>" + this.host + "</td>" +
@@ -39,9 +39,10 @@ function renderNew(numRows) {
     }
 
     for (i = oldMaxRecordSet; i <= oldMaxRecordSet + numRows; i++) { // TODO: add a try...catch loop to handle the TypeError when we try to use undefined recordSets
-
-        $("#title").after("<tr id=\"row" + recordSet[i].ID + "\" onmouseup=\"selectionAdd()\">");
-        $("#row" + recordSet[i].ID).append(recordSet[i].toHtmlCell());
+        if (recordSet[i].priority  >= document.getElementById("threshold").value) {
+            $("#title").after("<tr id=\"row" + recordSet[i].ID + "\" onmouseup=\"selectionAdd()\">");
+            $("#row" + recordSet[i].ID).append(recordSet[i].toHtmlCell());
+        }
     }
 }
 
@@ -49,7 +50,7 @@ function renderNew(numRows) {
 function requestNew(numRows, callback) {
 
     // If there's no records yet, just start at 0
-    arrayMaxValue = recordSet[(recordSet.length - 1)] ? recordSet[(recordSet.length - 1)].ID : 0;
+    var arrayMaxValue = recordSet[(recordSet.length - 1)] ? recordSet[(recordSet.length - 1)].ID : 0;
     // Storing the array length before we start modifying it
     var arrayLength = recordSet.length; // prevents interesting issues with checking the length while changing it
     $.getJSON("response.php", {
@@ -60,7 +61,7 @@ function requestNew(numRows, callback) {
         function (data) {
             $.each(data, function (key, rowObject) {
                 var temp = $.parseJSON(rowObject);
-                recordSet[arrayLength + key] = new record(temp.ID, temp.datetime, temp.host, temp.program, temp.pid, temp.message, temp.priority)
+                recordSet[arrayLength + key] = new Record(temp.ID, temp.datetime, temp.host, temp.program, temp.pid, temp.message, temp.priority)
             });
             if (callback) {
                 renderNew(50);
@@ -87,7 +88,7 @@ function requestOld(numRows, renderOnLoad) {
                 var tempArray = [];
                 $.each(data, function (key, rowObject) {
                     var temp = $.parseJSON(rowObject);
-                    tempArray[key] = new record(temp.ID, temp.datetime, temp.host, temp.program, temp.pid, temp.message, temp.priority)
+                    tempArray[key] = new Record(temp.ID, temp.datetime, temp.host, temp.program, temp.pid, temp.message, temp.priority)
                 });
                 recordSet = tempArray.concat(recordSet);
                 if (renderOnLoad) {
@@ -109,13 +110,14 @@ function renderOld(numRows) {
 
     for (var i = 0;; i++) {
 
+        // Two ways of doing this, throw a break or calculate ahead of time how many rows we need
         if (currentMinDisplay == recordSet[i].ID) {
             break;
-        } // Should be part of the loop declaration
-
-        $("#row" + currentMinDisplay).after("<tr id=\"row" + recordSet[i].ID + "\" onmouseup=\"selectionAdd()\">"); // Add the row
-        $("#row" + recordSet[i].ID).append(recordSet[i].toHtmlCell());
-
+        }
+        if (recordSet[i].priority  >= document.getElementById("threshold").value) {
+            $("#row" + currentMinDisplay).after("<tr id=\"row" + recordSet[i].ID + "\" onmouseup=\"selectionAdd()\">"); // Add the row
+            $("#row" + recordSet[i].ID).append(recordSet[i].toHtmlCell());
+        }
     }
 }
 
@@ -139,9 +141,9 @@ function initialiseTable() {
                         // parsing the JSON once for speed
                         var temp = $.parseJSON(rowObject);
                         // Currently we're manually setting the properties of the record. Less flexible than dynamically searching the JSON for matching keys, but eh.
-                        recordSet[key + 0] = new record(temp.ID, temp.datetime, temp.host, temp.program, temp.pid, temp.message, temp.priority)
+                        recordSet[key + 0] = new Record(temp.ID, temp.datetime, temp.host, temp.program, temp.pid, temp.message, temp.priority)
                     });
-                    //  Now iterate through the recordSet array and turn each element into an HTML row, then each element in the row into a cell
+                    //  Now iterate through the recordSet array and turn each element into an HTML row
                     $.each(recordSet, function (key, data) {
                         $("#title").after("<tr id=\"row" + recordSet[key].ID + "\" onmouseup=\"selectionAdd()\">");
                         $("#row" + recordSet[key].ID).append(recordSet[key].toHtmlCell());
@@ -163,37 +165,32 @@ function initialiseTable() {
 // Removes all highlights from the document
 function selectionClear(columnID){
 
-    if (columnID !== undefined) {   // If we've specified a column, just hit that one
-        var useless;
-    } else {                        // Otherwise run through the entire document
-        $("span:first-child").each(function(){  // and for each cell with a span, replace its contents with plain text
-            this.parentNode.innerHTML = this.parentNode.textContent;
-        });
-    }
-
-
+    // Selective clearing of a single column is not yet implemented
+    $("span:first-child").each(function(){  // For each cell with a span, replace its contents with plain text
+        this.parentNode.innerHTML = this.parentNode.textContent;
+    });
 }
 
 function selectionCommit(updownvote) {
 
-        var regexToCommit = {       // We create the regex with the default pattern for each field, [match all]
-                datetime: '.*',
-                host:     '.*',
-                facility: '.*',
-                pid:      '.*',
-                program:  '.*',
-                message:  '.*',
-                priority: updownvote
-        };
+    var regexToCommit = {       // We create the regex with the default pattern for each field, [match all]
+        datetime: '.*',
+        host:     '.*',
+        facility: '.*',
+        pid:      '.*',
+        program:  '.*',
+        message:  '.*',
+        priority: updownvote
+    };
 
     if (updownvote == '1') {
         $('#upArrow').height(80);
         $('#upArrow').css('background-size:', 'auto, 80px');
-    };
+    }
 
-     $("span:first-child").each(function(){                  // For each <span> element that's the first <span> in it's cell
+    $("span:first-child").each(function(){                  // For each <span> element that's the first <span> in it's cell
                                                                 // I.e., for each cell with a span element
-         var cellHTML = this.parentNode.innerHTML;           // Grab the cell HTML
+        var cellHTML = this.parentNode.innerHTML;           // Grab the cell HTML
             cellHTML.replace(/([\.\\\+\*\?\[\^\]\$\(\)])/g, '\\$1');    // Escape any regex characters that will mess with us later
             if (cellHTML.match(/^<span class="selection">/)) {                  // If the selected text starts at line start
                 cellHTML = cellHTML.replace(/^<span class="selection">/,'^');   // Just remove the first tag
@@ -233,9 +230,8 @@ function selectionCommit(updownvote) {
 
         if (document.getElementById("debug-mode").checked) {
             console.log(regexToCommit);
-        };
-
-        $.getJSON("response.php", regexToCommit, function (response) {
+        }
+    $.getJSON("response.php", regexToCommit, function (response) {
                     console.log(response);
                 }
         );
