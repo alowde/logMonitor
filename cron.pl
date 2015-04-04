@@ -58,12 +58,19 @@ $pidfile->write;
 
         for (my $i = $minProc + 1; $i <= $#regexes; $i++) { #  If any rows have a lower processed number than the number of regexes:
 
+            my $msg = $regexes[$i]->{message};
+
             if ($dbg) {
                 say "DEBUG: minProcessed = $minProc";
                 say "DEBUG: regexes length = $#regexes";
                 say "DEBUG: current iteration $i";
-                say "DEBUG: regex at iteration is $regexes[$i]";
-                say "DEBUG: message regex at iteration is $regexes[$i]->{message}";
+                print "DEBUG: regex at iteration is ";
+                while ( (my $key, my $value) = each $regexes[$i]) {
+                    unless ($value) { $value = ''; }
+                    print "$key => $value, ";
+                }
+                $msg =~ s/\(/\\\(/g; 
+                say "\nDEBUG: message regex at iteration is $msg";
             }
             if (($regexes[$i]->{message} ne ".*")
                 and ($regexes[$i]->{host} and ($regexes[$i]->{host} eq ".*"))
@@ -73,7 +80,7 @@ $pidfile->write;
 
                 $stmtUpdateMessageOnly->bind_param(1, $regexes[$i]->{priority});
                 $stmtUpdateMessageOnly->bind_param(2, $minProc);
-                $stmtUpdateMessageOnly->bind_param(3, $regexes[$i]->{message});
+                $stmtUpdateMessageOnly->bind_param(3, $msg);
                 $stmtUpdateMessageOnly->execute or clean_stop("Whelp, failed to run the message regex");
             }else{ #  All more specific regexes (that have been implemented) failed, so we'll use the UpdateAll statement
                 $stmtUpdateAll->bind_param(1, $regexes[$i]->{priority});
