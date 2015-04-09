@@ -37,9 +37,13 @@
         var offset, lowerVisible;
 
 		offset = $("table tr:nth-last-of-type(10)").offset();		// Get the ID of the tenth-last row in the current table
-		lowerVisible = ($(window).scrollTop() + $(window).height());	// Find out the current lowest visible position in the screen
-
-        if (offset.top <= lowerVisible){ requestOld(10, true); }	// If the tenth-last row is above that position, get more rows and tell requestOld to call renderOld when complete
+        if (typeof(offset) == null) {
+            console.log(offset);
+            requestOld(10, true);
+        } else {
+		    lowerVisible = ($(window).scrollTop() + $(window).height());	// Find out the current lowest visible position in the screen
+            if (offset.top <= lowerVisible){ requestOld(10, true); }	// If the tenth-last row is above that position, get more rows and tell requestOld to call renderOld when complete
+        }
 	}
 
 	function newMsgISR() {
