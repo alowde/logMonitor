@@ -5,6 +5,10 @@ use v5.10;
 
 use DBI;
 use File::Pid;
+use Time::HiRes qw( usleep ualarm gettimeofday tv_interval nanosleep
+              clock_gettime clock_getres clock_nanosleep clock
+                      stat );
+
 
 use sigtrap qw(handler clean_stop normal-signals);
 
@@ -44,6 +48,10 @@ $pidfile->write;
             unless (@message) { sleep 1;};                #   If we haven't received a row, wait a second before trying again
         
         } while !(@message);
+
+        my $start = Time::HiRes::gettimeofday();
+
+        say ("Found a new row, starting work at $start"); 
 
         #  Delete same row from temporary table, identified by ID
         $stmtDelete->execute($message[0]) or clean_stop("Write thread died after failing to run a delete statement");
