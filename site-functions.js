@@ -174,12 +174,12 @@ function selectionClear(columnID){
 function selectionCommit(updownvote) {
 
     var regexToCommit = {       // We create the regex with the default pattern for each field, [match all]
-        datetime: '.*',
-        host:     '.*',
-        facility: '.*',
-        pid:      '.*',
-        program:  '.*',
-        message:  '.*',
+        datetime: '%',
+        host:     '%',
+        facility: '%',
+        pid:      '%',
+        program:  '%',
+        message:  '%',
         priority: updownvote
     };
 
@@ -191,17 +191,17 @@ function selectionCommit(updownvote) {
     $("span:first-child").each(function(){                  // For each <span> element that's the first <span> in it's cell
                                                                 // I.e., for each cell with a span element
         var cellHTML = this.parentNode.innerHTML;           // Grab the cell HTML
-            cellHTML.replace(/([\.\\\+\*\?\[\^\]\$\(\)])/g, '\\$1');    // Escape any regex characters that will mess with us later
+            cellHTML.replace(/([%_\\])/, '\$1');            // Escape %, _ and \ by adding a \
             if (cellHTML.match(/^<span class="selection">/)) {                  // If the selected text starts at line start
-                cellHTML = cellHTML.replace(/^<span class="selection">/,'^');   // Just remove the first tag
+                cellHTML = cellHTML.replace(/^<span class="selection">/,'');   // Just remove the first tag
             } else {
-                cellHTML = cellHTML.replace(/^.*?<span class="selection">/,'^.*'); // Otherwise remove non-selected text from line start to the first span tag, including the tag
+                cellHTML = cellHTML.replace(/^.*?<span class="selection">/,'%'); // Otherwise remove non-selected text from line start to the first span tag, including the tag
             }
             while (cellHTML.match(/<span class="selection">/)){
-                cellHTML = cellHTML.replace(/<\/span>.*?<span class="selection">/,'.*'); // As above for each middle tag
+                cellHTML = cellHTML.replace(/<\/span>.*?<span class="selection">/,'%'); // As above for each middle tag
             }
-            cellHTML = cellHTML.replace(/<\/span>.*$/,'.*');                  // And again for the final tag
-            switch (this.parentNode.attributes['id'].value){
+            cellHTML = cellHTML.replace(/<\/span>.*$/,'%');                  // And again for the final tag
+            switch (this.parentNode.attributes['class'].value){
                 case "datetime":
                     regexToCommit.datetime = cellHTML;
                     break;
@@ -222,7 +222,7 @@ function selectionCommit(updownvote) {
                     break;
                 default:
                     // Something fishy is happening - shouldn't have a <td> with different ID
-                    console.log("Damnit, Unhygienix - value shouldn't be: "+ rangeObj.startContainer.attributes['id'].value);
+                    console.log("Damnit, Unhygienix - value shouldn't be: "+ rangeObj.startContainer.attributes['class'].value);
             } // Using a switch statement to avoid passing a DOM ID directly
         });
 
@@ -231,7 +231,7 @@ function selectionCommit(updownvote) {
         if (document.getElementById("debug-mode").checked) {
             console.log(regexToCommit);
         }
-    $.getJSON("response.php", regexToCommit, function (response) {
+    $.post("response.php", regexToCommit, function (response) {
                     console.log(response);
                 }
         );
@@ -254,7 +254,7 @@ function selectionAdd() {
         var span = document.createElement("span"); // Create a span tag so we can highlight the text for cosmetic purposes
         span.className="selection";              // Set the span to the highlight class
         rangeObj.surroundContents(span);         // Put the span tag on the selected text
-        if (rangeObj.startContainer.attributes['id'].value === "ID"){
+        if (rangeObj.startContainer.attributes['class'].value === "ID"){
             selectionClear();
         }
      }
