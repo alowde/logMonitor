@@ -105,7 +105,7 @@ function regexAdd() {
 
     if (!($stmtSearchRegexesResult->num_rows > 0)) {
         // Didn't find anything, so we'll insert our new regex
-        $stmtInsertRegex->bind_param("sssssi", $_POST["datetime"], $_POST["host"], $_POST["program"], $_POST["pid"], $_POST["message"], $_POST["priority"]);
+        $stmtInsertRegex->bind_param("sssssi", $_POST["datetime"], $_POST["host"], $_POST["program"], $_POST["pid"], str_replace("(","\(",$_POST["message"]), $_POST["priority"]);
         // If there's an error return that, otherwise return "OK"
         print ($stmtInsertRegex->execute() ? json_encode("OK") : $stmtInsertRegex->error);
     } else {

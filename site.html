@@ -38,7 +38,8 @@
 
 		offset = $("table tr:nth-last-of-type(10)").offset();		// Get the ID of the tenth-last row in the current table
 		lowerVisible = ($(window).scrollTop() + $(window).height());	// Find out the current lowest visible position in the screen
-		if (offset.top <= lowerVisible){ requestOld(10, true); }	// If the tenth-last row is above that position, get more rows and tell requestOld to call renderOld when complete
+
+        if (offset.top <= lowerVisible){ requestOld(10, true); }	// If the tenth-last row is above that position, get more rows and tell requestOld to call renderOld when complete
 	}
 
 	function newMsgISR() {
@@ -118,11 +119,9 @@
             <img src='down.svg' height=75px class="downArrow" />
         </div>
         <div style="padding: 10px;">
-            <form>
-                <span style="white-space: nowrap;"><label for="threshold">Threshold: </label><input type="number" id="threshold" min="-100" max="100" value="0" size="2" style="width: 40px;"></span>
-                <p><input type="submit" value="Submit"></p>
-            </form>
-            
+                <!--<span style="white-space: nowrap;"><label for="threshold">Threshold: </label><input type="number" id="threshold" min="-100" max="100" value="0" size="2" style="width: 40px;"></span>-->
+            <label for="threshold">Threshold: </label><input type="number" id="threshold" min="-100" max="100" value="0" size="2" style="width: 40px;">
+            <p><button type="button" onclick="rerender()">Update</button></p>
         </div>
 	</div>
 	<div style="background-color: #B8B881; text-align: center; padding: 3px; height: 15px; z-index:10;" onclick="resizeSettingsDiv()">
