@@ -57,7 +57,7 @@ $pidfile->write;
         $stmtDelete->execute($message[0]) or clean_stop("Write thread died after failing to run a delete statement");
 
         #  Initialisation - set starting processed value, scanned value and starting priority to 0
-        my $i = 0;
+        my $processed = 0;
         unless ($message[8]) { $message[8] = 0 };
         unless ($message[6]) { $message[6] = 0 };
 
@@ -71,9 +71,9 @@ $pidfile->write;
                 ($message[4] =~ /$_->{pid}/)) {
                  $message[8] += $_->{priority}           #  If we match all regexes, increment or decrement as appropriate
             }
-            $i++                                         #  For every regex, matched or not, increment the number of regexes checked
+            $processed++                                         #  For every regex, matched or not, increment the number of regexes checked
         };
-        $message[7] = $i;                                #  Set processed according to the number of regexes checked
+        $message[7] = $processed;                                #  Set processed according to the number of regexes checked
     
 
 
@@ -104,6 +104,9 @@ sub initialiseRegexes {
 
 #   Push each regex onto the return array as a set of key-value pairs
     while (my @row = $statement->fetchrow_array) {
+        
+        s/%/\.\*/g for @row;
+        
         push @returnArray, {
                 id          => $row[0],
                 datestamp   => $row[1],
@@ -114,9 +117,17 @@ sub initialiseRegexes {
                 processed   => $row[6],
                 priority    => $row[7],
         };
+        
+        say $row[5];
     };
 
+
     return @returnArray;
+}
+
+sub sqlWildcardToRegex {
+    my $result = $_[0] =~ s/\.\*/%/;
+    return $result
 }
 
 sub clean_stop {
